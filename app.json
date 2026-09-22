@@ -16,9 +16,7 @@
     },
 
     "plugins": [
-      "@react-native-google-signin/google-signin",
-      "expo-print",
-      "expo-file-system"
+      "@react-native-google-signin/google-signin"
     ],
 
     "extra": {
