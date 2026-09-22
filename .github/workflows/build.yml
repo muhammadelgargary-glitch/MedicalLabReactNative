@@ -19,34 +19,34 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Check Node and Expo
-        run: |
-          node --version
-          npm --version
-          npx expo --version
-
-      - name: Check project files
+      - name: Show project files
         run: |
           echo "===== package.json ====="
           cat package.json
+          echo ""
           echo "===== app.json ====="
           cat app.json
+          echo ""
           echo "===== eas.json ====="
           cat eas.json
 
-      - name: Run Expo config with full output
+      - name: Test Expo configuration
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          set -o pipefail
-          npx expo config --json 2>&1 | tee expo-config.log
+          echo "===== Expo version ====="
+          npx expo --version
 
-      - name: Upload Expo config log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: expo-config-log
-          path: expo-config.log
+          echo "===== Expo config ====="
+          set +e
+          npx expo config --json
+          EXIT_CODE=$?
+          echo "===== Expo config exit code: $EXIT_CODE ====="
+
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "Expo configuration failed."
+            exit "$EXIT_CODE"
+          fi
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
