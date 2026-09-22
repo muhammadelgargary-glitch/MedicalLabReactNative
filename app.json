@@ -16,7 +16,13 @@
     },
 
     "plugins": [
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#1d3b36"
+        }
+      ]
     ],
 
     "extra": {
