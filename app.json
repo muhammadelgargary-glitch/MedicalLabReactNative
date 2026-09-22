@@ -1,23 +1,29 @@
 {
   "expo": {
     "name": "سجل المختبر الطبي",
-    "slug": "medical-lab-react-native",
-    "owner": "REPLACE_WITH_YOUR_EXPO_USERNAME",
+    "slug": "medicallabreactnative",
+    "owner": "an7mds-team",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "scheme": "medicallab",
+
     "android": {
       "package": "com.medical.lab",
       "adaptiveIcon": {
         "backgroundColor": "#1d3b36"
       }
     },
+
     "plugins": [
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "expo-print",
+      "expo-file-system"
     ],
+
     "extra": {
       "eas": {
-        "projectId": "REPLACE_WITH_YOUR_EAS_PROJECT_ID"
+        "projectId": "c9cc337d-0ac3-4839-b42d-9d2be8387c56"
       }
     }
   }
