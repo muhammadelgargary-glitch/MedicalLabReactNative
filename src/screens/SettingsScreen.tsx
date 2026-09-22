@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { useLabStore } from '../store/useLabStore';
+import {getTheme} from '../utils/theme';
 import { exportBackup, importBackup } from '../services/exportService';
 
 import {
@@ -88,6 +89,8 @@ export default function SettingsScreen() {
     importBackupData,
     addAudit,
   } = useLabStore();
+
+  const theme = getTheme(settings);
 
   const [modal, setModal] = useState(false);
   const [pending, setPending] = useState<any>(null);
@@ -658,52 +661,52 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView
-      style={styles.root}
+      style={[styles.root, {backgroundColor: theme.background}]}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.h}>
+      <Text style={[styles.h, {color: theme.primary}]}>
         ⚙ إعدادات المختبر
       </Text>
 
       {/* ===================== بيانات المختبر ===================== */}
 
-      <View style={styles.card}>
-        <Text style={styles.title}>
+      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
+        <Text style={[styles.title, {color: theme.primary}]}>
           🏥 بيانات المختبر
         </Text>
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           اسم المركز / المختبر
         </Text>
 
         <TouchableOpacity
-          style={styles.value}
+          style={[styles.value, {backgroundColor: theme.input, borderColor: theme.border}]}
           onPress={() => openLabEditor('center')}
         >
-          <Text style={styles.valueText}>
+          <Text style={[styles.valueText, {color: theme.text}]}>
             {settings.center ||
               'مركز الرعاية الصحية الأولية'}
           </Text>
         </TouchableOpacity>
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           المديرية / القطاع
         </Text>
 
         <TouchableOpacity
-          style={styles.value}
+          style={[styles.value, {backgroundColor: theme.input, borderColor: theme.border}]}
           onPress={() =>
             openLabEditor('directorate')
           }
         >
-          <Text style={styles.valueText}>
+          <Text style={[styles.valueText, {color: theme.text}]}>
             {settings.directorate ||
               'دائرة الصحة / قطاع الرعاية'}
           </Text>
         </TouchableOpacity>
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           الشعار
         </Text>
 
@@ -721,7 +724,7 @@ export default function SettingsScreen() {
             ✓ يوجد شعار محفوظ
           </Text>
         ) : (
-          <Text style={styles.note}>
+          <Text style={[styles.note, {color: theme.muted}]}>
             لم يتم تحديد شعار حاليًا.
           </Text>
         )}
@@ -729,12 +732,12 @@ export default function SettingsScreen() {
 
       {/* ===================== المظهر ===================== */}
 
-      <View style={styles.card}>
-        <Text style={styles.title}>
+      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
+        <Text style={[styles.title, {color: theme.primary}]}>
           🎨 المظهر والألوان
         </Text>
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           الثيم
         </Text>
 
@@ -781,7 +784,7 @@ export default function SettingsScreen() {
           })}
         </View>
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           اللون المخصص
         </Text>
 
@@ -811,7 +814,7 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <Text style={styles.note}>
+        <Text style={[styles.note, {color: theme.muted}]}>
           أدخل لونًا بصيغة HEX مثل #1d3b36.
         </Text>
 
@@ -825,7 +828,7 @@ export default function SettingsScreen() {
             )
         )}
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           حجم الخط
         </Text>
 
@@ -839,7 +842,7 @@ export default function SettingsScreen() {
             )
         )}
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           نوع الخط
         </Text>
 
@@ -857,7 +860,7 @@ export default function SettingsScreen() {
             )
         )}
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           كثافة الواجهة
         </Text>
 
@@ -881,7 +884,7 @@ export default function SettingsScreen() {
             )
         )}
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           شكل الأيقونات
         </Text>
 
@@ -909,7 +912,7 @@ export default function SettingsScreen() {
             )
         )}
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           حجم الشعار
         </Text>
 
@@ -950,8 +953,8 @@ export default function SettingsScreen() {
 
       {/* ===================== الأسعار ===================== */}
 
-      <View style={styles.card}>
-        <Text style={styles.title}>
+      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
+        <Text style={[styles.title, {color: theme.primary}]}>
           💰 أسعار الفحوصات
         </Text>
 
@@ -967,7 +970,7 @@ export default function SettingsScreen() {
 
         {settings.pricesEnabled && (
           <>
-            <Text style={styles.note}>
+            <Text style={[styles.note, {color: theme.muted}]}>
               أضف سعر كل فحص. سيتم استخدام هذه
               البيانات لاحقًا في شاشة المريض
               والفاتورة والإحصائيات.
@@ -977,7 +980,7 @@ export default function SettingsScreen() {
               value={priceName}
               onChangeText={setPriceName}
               placeholder="اسم الفحص"
-              style={styles.input}
+              style={[styles.input, {backgroundColor: theme.input, borderColor: theme.border, color: theme.text}]}
               textAlign="right"
             />
 
@@ -986,7 +989,7 @@ export default function SettingsScreen() {
               onChangeText={setPriceValue}
               placeholder="السعر"
               keyboardType="numeric"
-              style={styles.input}
+              style={[styles.input, {backgroundColor: theme.input, borderColor: theme.border, color: theme.text}]}
               textAlign="right"
             />
 
@@ -1037,8 +1040,8 @@ export default function SettingsScreen() {
 
       {/* ===================== القيم الحرجة ===================== */}
 
-      <View style={styles.card}>
-        <Text style={styles.title}>
+      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
+        <Text style={[styles.title, {color: theme.primary}]}>
           🚨 القيم الحرجة والتنبيهات
         </Text>
 
@@ -1052,7 +1055,7 @@ export default function SettingsScreen() {
             )
         )}
 
-        <Text style={styles.note}>
+        <Text style={[styles.note, {color: theme.muted}]}>
           يمكن تحديد الحد الأدنى والأعلى للفحوصات
           التي تريد مراقبتها.
         </Text>
@@ -1061,7 +1064,7 @@ export default function SettingsScreen() {
           value={criticalName}
           onChangeText={setCriticalName}
           placeholder="اسم الفحص"
-          style={styles.input}
+          style={[styles.input, {backgroundColor: theme.input, borderColor: theme.border, color: theme.text}]}
           textAlign="right"
         />
 
@@ -1145,8 +1148,8 @@ export default function SettingsScreen() {
 
       {/* ===================== الإحصائيات ===================== */}
 
-      <View style={styles.card}>
-        <Text style={styles.title}>
+      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
+        <Text style={[styles.title, {color: theme.primary}]}>
           📊 إعدادات الإحصائيات
         </Text>
 
@@ -1183,8 +1186,8 @@ export default function SettingsScreen() {
 
       {/* ===================== Google Drive ===================== */}
 
-      <View style={styles.card}>
-        <Text style={styles.title}>
+      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
+        <Text style={[styles.title, {color: theme.primary}]}>
           ☁️ Google Drive — النسخ الاحتياطي
         </Text>
 
@@ -1272,7 +1275,7 @@ export default function SettingsScreen() {
           />
         )}
 
-        <Text style={styles.note}>
+        <Text style={[styles.note, {color: theme.muted}]}>
           يتم استخدام صلاحية Google Drive الخاصة
           بالتطبيق لملفات النسخ التي ينشئها
           التطبيق فقط.
@@ -1281,8 +1284,8 @@ export default function SettingsScreen() {
 
       {/* ===================== النسخ المحلي ===================== */}
 
-      <View style={styles.card}>
-        <Text style={styles.title}>
+      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
+        <Text style={[styles.title, {color: theme.primary}]}>
           💾 النسخ الاحتياطي والاستيراد المحلي
         </Text>
 
@@ -1312,12 +1315,12 @@ export default function SettingsScreen() {
 
       {/* ===================== النسخ التلقائي ===================== */}
 
-      <View style={styles.card}>
-        <Text style={styles.title}>
+      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
+        <Text style={[styles.title, {color: theme.primary}]}>
           🔄 النسخ التلقائي إلى Google Drive
         </Text>
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           وضع النسخ التلقائي
         </Text>
 
@@ -1363,8 +1366,8 @@ export default function SettingsScreen() {
 
       {/* ===================== الطباعة ===================== */}
 
-      <View style={styles.card}>
-        <Text style={styles.title}>
+      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
+        <Text style={[styles.title, {color: theme.primary}]}>
           🖨️ إعدادات الطباعة المتقدمة
         </Text>
 
@@ -1372,7 +1375,7 @@ export default function SettingsScreen() {
           الصفحة والتخطيط
         </Text>
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           حجم الورق
         </Text>
 
@@ -1383,7 +1386,7 @@ export default function SettingsScreen() {
             updatePrint('paper', value)
         )}
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           اتجاه الصفحة
         </Text>
 
@@ -1407,7 +1410,7 @@ export default function SettingsScreen() {
             )
         )}
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           عدد التقارير في الصفحة
         </Text>
 
@@ -1502,7 +1505,7 @@ export default function SettingsScreen() {
           الخط
         </Text>
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           نوع الخط
         </Text>
 
@@ -1564,7 +1567,7 @@ export default function SettingsScreen() {
             )
         )}
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           مكان الشعار
         </Text>
 
@@ -1579,7 +1582,7 @@ export default function SettingsScreen() {
             )
         )}
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           حجم الشعار
         </Text>
 
@@ -1599,17 +1602,17 @@ export default function SettingsScreen() {
           معلومات التقرير
         </Text>
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           عنوان التقرير
         </Text>
 
         <TouchableOpacity
-          style={styles.value}
+          style={[styles.value, {backgroundColor: theme.input, borderColor: theme.border}]}
           onPress={() =>
             openLabEditor('reportTitle')
           }
         >
-          <Text style={styles.valueText}>
+          <Text style={[styles.valueText, {color: theme.text}]}>
             {printSettings.reportTitle ||
               'تقرير الفحوصات المخبرية'}
           </Text>
@@ -1689,17 +1692,17 @@ export default function SettingsScreen() {
             )
         )}
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           نص التذييل
         </Text>
 
         <TouchableOpacity
-          style={styles.value}
+          style={[styles.value, {backgroundColor: theme.input, borderColor: theme.border}]}
           onPress={() =>
             openLabEditor('footerText')
           }
         >
-          <Text style={styles.valueText}>
+          <Text style={[styles.valueText, {color: theme.text}]}>
             {printSettings.footerText ||
               'مع تمنياتنا بالصحة والعافية'}
           </Text>
@@ -1715,7 +1718,7 @@ export default function SettingsScreen() {
             )
         )}
 
-        <Text style={styles.label}>
+        <Text style={[styles.label, {color: theme.text}]}>
           لون الإطار
         </Text>
 
@@ -1760,8 +1763,8 @@ export default function SettingsScreen() {
 
       {/* ===================== حالة المشروع ===================== */}
 
-      <View style={styles.card}>
-        <Text style={styles.title}>
+      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
+        <Text style={[styles.title, {color: theme.primary}]}>
           📋 حالة المشروع
         </Text>
 
@@ -1777,7 +1780,7 @@ export default function SettingsScreen() {
           التخزين: AsyncStorage
         </Text>
 
-        <Text style={styles.note}>
+        <Text style={[styles.note, {color: theme.muted}]}>
           جميع الإعدادات يتم حفظها تلقائيًا عند
           تغييرها.
         </Text>
@@ -1866,7 +1869,7 @@ export default function SettingsScreen() {
               value={labText}
               onChangeText={setLabText}
               autoFocus
-              style={styles.input}
+              style={[styles.input, {backgroundColor: theme.input, borderColor: theme.border, color: theme.text}]}
               textAlign="right"
               multiline
             />

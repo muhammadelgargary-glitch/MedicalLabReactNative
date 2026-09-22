@@ -11,6 +11,7 @@ import {
 
 import {useLabStore} from '../store/useLabStore';
 import {displayDate} from '../utils/helpers';
+import {getTheme} from '../utils/theme';
 
 import {
   exportPatientPdf,
@@ -27,6 +28,7 @@ export default function HomeScreen({navigation}: any) {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const dark = !!settings?.darkMode;
+  const theme = getTheme(settings);
 
   /* =====================================================
      ترتيب + بحث
@@ -202,7 +204,7 @@ export default function HomeScreen({navigation}: any) {
       <View
         style={[
           styles.patientCard,
-          dark && styles.patientCardDark,
+          {backgroundColor: theme.surface, borderColor: theme.border},
         ]}>
 
         {/* معلومات المريض */}
@@ -214,7 +216,7 @@ export default function HomeScreen({navigation}: any) {
             <Text
               style={[
                 styles.patientName,
-                dark && styles.textLight,
+                {color: theme.text},
               ]}>
               {item.name || 'بدون اسم'}
             </Text>
@@ -222,7 +224,7 @@ export default function HomeScreen({navigation}: any) {
             <Text
               style={[
                 styles.patientDetails,
-                dark && styles.textMuted,
+                {color: theme.muted},
               ]}>
               رقم السجل: {item.seq || '—'}
             </Text>
@@ -230,7 +232,7 @@ export default function HomeScreen({navigation}: any) {
             <Text
               style={[
                 styles.patientDetails,
-                dark && styles.textMuted,
+                {color: theme.muted},
               ]}>
               التاريخ: {formatDate(item.date)}
             </Text>
@@ -238,7 +240,7 @@ export default function HomeScreen({navigation}: any) {
             <Text
               style={[
                 styles.patientDetails,
-                dark && styles.textMuted,
+                {color: theme.muted},
               ]}>
               العمر: {item.age || '—'}    الجنس:{' '}
               {item.gender || '—'}
@@ -262,13 +264,13 @@ export default function HomeScreen({navigation}: any) {
           <View
             style={[
               styles.notesBox,
-              dark && styles.notesBoxDark,
+              {backgroundColor: theme.surfaceAlt, borderColor: theme.border},
             ]}>
 
             <Text
               style={[
                 styles.notesText,
-                dark && styles.textMuted,
+                {color: theme.muted},
               ]}>
               ملاحظات: {item.notes}
             </Text>
@@ -388,7 +390,7 @@ export default function HomeScreen({navigation}: any) {
     <View
       style={[
         styles.root,
-        dark && styles.rootDark,
+        {backgroundColor: theme.background},
       ]}>
 
       {/* رأس الصفحة */}
@@ -396,7 +398,7 @@ export default function HomeScreen({navigation}: any) {
       <View
         style={[
           styles.header,
-          dark && styles.headerDark,
+          {backgroundColor: theme.header, borderBottomColor: theme.primary},
         ]}>
 
         <View style={styles.headerTextBox}>
@@ -404,7 +406,7 @@ export default function HomeScreen({navigation}: any) {
           <Text
             style={[
               styles.title,
-              dark && styles.textLight,
+              {color: '#fff'},
             ]}>
             سجل المختبر الطبي
           </Text>
@@ -412,7 +414,7 @@ export default function HomeScreen({navigation}: any) {
           <Text
             style={[
               styles.subtitle,
-              dark && styles.textMuted,
+              {color: '#d6dfdb'},
             ]}>
             إدارة المرضى والنتائج المخبرية
           </Text>
@@ -503,7 +505,7 @@ export default function HomeScreen({navigation}: any) {
       <View
         style={[
           styles.searchContainer,
-          dark && styles.searchContainerDark,
+          {backgroundColor: theme.input, borderColor: theme.border},
         ]}>
 
         <Text

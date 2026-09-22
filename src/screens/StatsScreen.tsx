@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import {useLabStore} from '../store/useLabStore';
+import {getTheme} from '../utils/theme';
 
 import {
   getStats,
@@ -26,6 +27,7 @@ export default function StatsScreen() {
   >(null);
 
   const dark = !!settings?.darkMode;
+  const theme = getTheme(settings);
 
   const stats = useMemo(() => {
     return getStats(patients);
@@ -124,6 +126,7 @@ export default function StatsScreen() {
     <ScrollView
       style={[
         styles.root,
+        {backgroundColor: theme.background},
         dark && styles.rootDark,
       ]}
       contentContainerStyle={styles.content}

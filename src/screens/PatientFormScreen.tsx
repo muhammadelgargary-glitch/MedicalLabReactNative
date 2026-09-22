@@ -18,9 +18,12 @@ import {
 } from '../utils/constants';
 import {todayISO} from '../utils/helpers';
 import SectionCard from '../components/SectionCard';
+import {getTheme} from '../utils/theme';
 
 export default function PatientFormScreen({route, navigation}: any) {
   const {patients, upsertPatient} = useLabStore();
+  const settings = useLabStore(s => s.settings);
+  const theme = getTheme(settings);
 
   const existing = patients.find(
     p => p.id === route.params?.id
@@ -104,7 +107,7 @@ export default function PatientFormScreen({route, navigation}: any) {
 
   return (
     <ScrollView
-      style={styles.root}
+      style={[styles.root, {backgroundColor: theme.background}]}
       contentContainerStyle={{
         padding: 12,
         paddingBottom: 40,
@@ -112,8 +115,8 @@ export default function PatientFormScreen({route, navigation}: any) {
       keyboardShouldPersistTaps="handled"
     >
       {/* بيانات المريض */}
-      <View style={styles.card}>
-        <Text style={styles.title}>بيانات المريض</Text>
+      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
+        <Text style={[styles.title, {color: theme.primary}]}>بيانات المريض</Text>
 
         <Input
           label="اسم المريض الكامل *"
@@ -183,8 +186,8 @@ export default function PatientFormScreen({route, navigation}: any) {
       </View>
 
       {/* اختيار الأقسام */}
-      <View style={styles.card}>
-        <Text style={styles.title}>
+      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
+        <Text style={[styles.title, {color: theme.primary}]}>
           اختيار أقسام الفحوصات
         </Text>
 
@@ -273,6 +276,8 @@ function Input({
   multiline?: boolean;
   numberOfLines?: number;
 }) {
+  const settings = useLabStore(s => s.settings);
+  const theme = getTheme(settings);
   return (
     <View
       style={{
@@ -280,7 +285,7 @@ function Input({
         marginBottom: 10,
       }}
     >
-      <Text style={styles.label}>
+      <Text style={[styles.label, {color: theme.text}]}>
         {label}
       </Text>
 
@@ -289,7 +294,7 @@ function Input({
         onChangeText={onChangeText}
         editable={editable}
         placeholder={placeholder}
-        placeholderTextColor="#999"
+        placeholderTextColor={theme.muted}
         keyboardType={keyboardType}
         multiline={multiline}
         numberOfLines={numberOfLines}
@@ -299,6 +304,7 @@ function Input({
         }
         style={[
           styles.input,
+          {backgroundColor: theme.input, borderColor: theme.border, color: theme.text},
           multiline && styles.multilineInput,
           !editable && styles.disabledInput,
         ]}
