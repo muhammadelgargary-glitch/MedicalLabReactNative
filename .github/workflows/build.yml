@@ -24,18 +24,84 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Show Expo version
+        run: |
+          echo "===== Expo CLI version ====="
+          npx expo --version
+
       - name: Verify Expo configuration
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: npx expo config --json
+        shell: bash
+        run: |
+          echo "========================================"
+          echo "        EXPO CONFIG DIAGNOSTIC"
+          echo "========================================"
+
+          echo ""
+          echo "===== Current directory ====="
+          pwd
+
+          echo ""
+          echo "===== Project files ====="
+          ls -la
+
+          echo ""
+          echo "===== app.json ====="
+          cat app.json
+
+          echo ""
+          echo "===== package.json ====="
+          cat package.json
+
+          echo ""
+          echo "===== Expo version ====="
+          npx expo --version
+
+          echo ""
+          echo "===== Running Expo config ====="
+          set +e
+          npx expo config --json > expo-config-output.txt 2>&1
+          EXIT_CODE=$?
+          set -e
+
+          echo ""
+          echo "===== Expo config exit code ====="
+          echo "$EXIT_CODE"
+
+          echo ""
+          echo "===== Expo config output ====="
+          cat expo-config-output.txt
+
+          echo ""
+          echo "========================================"
+
+          if [ "$EXIT_CODE" -ne 0 ]; then
+            echo "Expo configuration failed."
+            exit "$EXIT_CODE"
+          fi
+
+          echo "Expo configuration is valid."
+
+      - name: Upload Expo diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: expo-config-diagnostic
+          path: expo-config-output.txt
+          if-no-files-found: warn
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Verify EAS CLI
+      - name: Show EAS CLI version
         run: eas --version
 
       - name: Build Android APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: eas build --platform android --profile preview --non-interactive
+        run: |
+          eas build \
+            --platform android \
+            --profile preview \
+            --non-interactive
