@@ -22,7 +22,7 @@ jobs:
           npm --version
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Show Expo version
         run: |
@@ -32,6 +32,7 @@ jobs:
       - name: Verify Expo configuration
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_DEBUG: "1"
         shell: bash
         run: |
           echo "========================================"
@@ -39,57 +40,24 @@ jobs:
           echo "========================================"
 
           echo ""
-          echo "===== Current directory ====="
-          pwd
+          echo "===== Node ====="
+          node --version
 
           echo ""
-          echo "===== Project files ====="
-          ls -la
+          echo "===== npm ====="
+          npm --version
 
           echo ""
-          echo "===== app.json ====="
-          cat app.json
-
-          echo ""
-          echo "===== package.json ====="
-          cat package.json
-
-          echo ""
-          echo "===== Expo version ====="
+          echo "===== Expo CLI ====="
           npx expo --version
 
           echo ""
-          echo "===== Running Expo config ====="
-          set +e
-          npx expo config --json > expo-config-output.txt 2>&1
-          EXIT_CODE=$?
-          set -e
+          echo "===== Expo Doctor ====="
+          npx expo-doctor || true
 
           echo ""
-          echo "===== Expo config exit code ====="
-          echo "$EXIT_CODE"
-
-          echo ""
-          echo "===== Expo config output ====="
-          cat expo-config-output.txt
-
-          echo ""
-          echo "========================================"
-
-          if [ "$EXIT_CODE" -ne 0 ]; then
-            echo "Expo configuration failed."
-            exit "$EXIT_CODE"
-          fi
-
-          echo "Expo configuration is valid."
-
-      - name: Upload Expo diagnostic
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: expo-config-diagnostic
-          path: expo-config-output.txt
-          if-no-files-found: warn
+          echo "===== Expo Config ====="
+          npx expo config --json
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
