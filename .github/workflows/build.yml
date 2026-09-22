@@ -16,39 +16,24 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Expo version
+      - name: Show Node and npm versions
         run: |
           node --version
           npm --version
-          npx expo --version
 
-      - name: Expo config diagnostic
+      - name: Install dependencies
+        run: npm install
+
+      - name: Verify Expo configuration
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        shell: bash
-        run: |
-          echo "===== Running Expo config ====="
-          npx expo config --json > expo-config-output.txt 2>&1
-          EXIT_CODE=$?
-
-          echo "===== Exit code: $EXIT_CODE ====="
-          echo "===== Output ====="
-          cat expo-config-output.txt
-
-          exit 0
-
-      - name: Upload Expo diagnostic
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: expo-config-diagnostic
-          path: expo-config-output.txt
+        run: npx expo config --json
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
+
+      - name: Verify EAS CLI
+        run: eas --version
 
       - name: Build Android APK
         env:
