@@ -62,15 +62,41 @@ export default function SettingsScreen(){
    }catch(e:any){Alert.alert('خطأ',e.message||'تعذر استيراد النسخة.')}
  };
 
- const signIn=async()=>{
-   try{
-     setDriveBusy(true);
-     const result=await signInWithGoogle();
-     setGoogleUser(result.user);
-     await refreshDriveSummary();
-     Alert.alert('تم تسجيل الدخول',`تم تسجيل الدخول بالحساب:\n${result.user.email}`);
-   }catch(e:any){Alert.alert('فشل تسجيل الدخول إلى Google',e.message||'تأكد من إعداد OAuth وSHA-1.')}finally{setDriveBusy(false)}
- };
+ const signIn = async () => {
+  try {
+    setDriveBusy(true);
+
+    const result = await signInWithGoogle();
+
+    setGoogleUser(result.user);
+    await refreshDriveSummary();
+
+    Alert.alert(
+      'تم تسجيل الدخول',
+      `تم تسجيل الدخول بالحساب:\n${result.user.email}`,
+    );
+  } catch (e: any) {
+    console.log('GOOGLE SIGN-IN ERROR:', e);
+
+    const code =
+      e?.code ||
+      e?.statusCodes ||
+      e?.nativeErrorCode ||
+      'NO_ERROR_CODE';
+
+    const message =
+      e?.message ||
+      e?.toString?.() ||
+      'خطأ غير معروف';
+
+    Alert.alert(
+      'فشل تسجيل الدخول إلى Google',
+      `رمز الخطأ: ${code}\n\n${message}`,
+    );
+  } finally {
+    setDriveBusy(false);
+  }
+};
 
  const driveBackup=async()=>{
    try{
