@@ -34,14 +34,17 @@ import {
 } from './src/services/googleDriveService';
 
 import { Platform } from 'react-native';
+import {getTheme} from './src/utils/theme';
 
 const Stack = createNativeStackNavigator();
 
 function HomeMenu({ navigation }: any) {
+  const settings = useLabStore(s => s.settings);
+  const theme = getTheme(settings);
   return (
-    <View style={styles.menu}>
+    <View style={[styles.menu, {backgroundColor: theme.background}]}>
 
-      <Text style={styles.menuTitle}>
+      <Text style={[styles.menuTitle, {color: theme.primary}]}>
         سجل المختبر الطبي
       </Text>
 
@@ -54,10 +57,10 @@ function HomeMenu({ navigation }: any) {
 
         <TouchableOpacity
           key={route}
-          style={styles.item}
+          style={[styles.item, {backgroundColor: theme.surface, borderColor: theme.border}]}
           onPress={() => navigation.navigate(route)}
         >
-          <Text style={styles.itemText}>
+          <Text style={[styles.itemText, {color: theme.text}]}>
             {icon} {title}
           </Text>
         </TouchableOpacity>
