@@ -92,19 +92,13 @@ export default function SettingsScreen() {
   const [modal, setModal] = useState(false);
   const [pending, setPending] = useState<any>(null);
 
-  const [googleUser, setGoogleUser] =
-    useState<GoogleUser | null>(null);
-
-  const [driveBusy, setDriveBusy] =
-    useState(false);
-
-  const [driveSummary, setDriveSummary] =
-    useState<any>(null);
+  const [googleUser, setGoogleUser] = useState<GoogleUser | null>(null);
+  const [driveBusy, setDriveBusy] = useState(false);
+  const [driveSummary, setDriveSummary] = useState<any>(null);
 
   const [labModal, setLabModal] = useState<
     null | 'center' | 'directorate' | 'reportTitle' | 'footerText'
   >(null);
-
   const [labText, setLabText] = useState('');
 
   const [priceName, setPriceName] = useState('');
@@ -129,8 +123,7 @@ export default function SettingsScreen() {
           setGoogleUser(saved);
         }
 
-        const restored =
-          await restoreGoogleSession();
+        const restored = await restoreGoogleSession();
 
         if (mounted && restored) {
           setGoogleUser(restored.user);
@@ -146,29 +139,21 @@ export default function SettingsScreen() {
 
   const refreshDriveSummary = async () => {
     try {
-      const summary =
-        await getDriveBackupSummary();
-
+      const summary = await getDriveBackupSummary();
       setDriveSummary(summary);
     } catch {
       setDriveSummary(null);
     }
   };
 
-  const updatePrint = async (
-    key: string,
-    value: any
-  ) => {
+  const updatePrint = async (key: string, value: any) => {
     await setSetting('printSettings', {
       ...settings.printSettings,
       [key]: value,
     });
   };
 
-  const updateSetting = async (
-    key: string,
-    value: any
-  ) => {
+  const updateSetting = async (key: string, value: any) => {
     await setSetting(key, value);
   };
 
@@ -187,8 +172,7 @@ export default function SettingsScreen() {
     } catch (e: any) {
       Alert.alert(
         'خطأ',
-        e?.message ||
-          'تعذر إنشاء النسخة الاحتياطية.'
+        e?.message || 'تعذر إنشاء النسخة الاحتياطية.'
       );
     }
   };
@@ -204,22 +188,16 @@ export default function SettingsScreen() {
     } catch (e: any) {
       Alert.alert(
         'خطأ في الاستيراد',
-        e?.message ||
-          'ملف غير صالح.'
+        e?.message || 'ملف غير صالح.'
       );
     }
   };
 
-  const apply = async (
-    mode: 'restore' | 'merge'
-  ) => {
+  const apply = async (mode: 'restore' | 'merge') => {
     if (!pending) return;
 
     try {
-      await importBackupData(
-        mode,
-        pending
-      );
+      await importBackupData(mode, pending);
 
       addAudit(
         mode === 'restore'
@@ -243,8 +221,7 @@ export default function SettingsScreen() {
     } catch (e: any) {
       Alert.alert(
         'خطأ',
-        e?.message ||
-          'تعذر استيراد النسخة.'
+        e?.message || 'تعذر استيراد النسخة.'
       );
     }
   };
@@ -253,8 +230,7 @@ export default function SettingsScreen() {
     try {
       setDriveBusy(true);
 
-      const result =
-        await signInWithGoogle();
+      const result = await signInWithGoogle();
 
       setGoogleUser(result.user);
 
@@ -265,10 +241,7 @@ export default function SettingsScreen() {
         `تم تسجيل الدخول بالحساب:\n${result.user.email}`
       );
     } catch (e: any) {
-      console.log(
-        'GOOGLE SIGN-IN ERROR:',
-        e
-      );
+      console.log('GOOGLE SIGN-IN ERROR:', e);
 
       const code =
         e?.code ||
@@ -297,16 +270,13 @@ export default function SettingsScreen() {
       const payload: DriveBackupPayload = {
         app: 'lab-app',
         version: 5,
-        exportedAt:
-          new Date().toISOString(),
+        exportedAt: new Date().toISOString(),
         patients,
         settings,
         auditLog,
       };
 
-      await uploadBackupToDrive(
-        payload
-      );
+      await uploadBackupToDrive(payload);
 
       addAudit(
         'رفع نسخة احتياطية إلى Google Drive',
@@ -323,8 +293,7 @@ export default function SettingsScreen() {
     } catch (e: any) {
       Alert.alert(
         'فشل النسخ إلى Drive',
-        e?.message ||
-          'تعذر رفع النسخة.'
+        e?.message || 'تعذر رفع النسخة.'
       );
     } finally {
       setDriveBusy(false);
@@ -335,8 +304,7 @@ export default function SettingsScreen() {
     try {
       setDriveBusy(true);
 
-      const data =
-        await restoreLatestBackupFromDrive();
+      const data = await restoreLatestBackupFromDrive();
 
       if (!data) {
         Alert.alert(
@@ -359,10 +327,7 @@ export default function SettingsScreen() {
             style: 'destructive',
             onPress: async () => {
               try {
-                await importBackupData(
-                  'restore',
-                  data
-                );
+                await importBackupData('restore', data);
 
                 addAudit(
                   'استيراد نسخة من Google Drive',
@@ -377,8 +342,7 @@ export default function SettingsScreen() {
               } catch (e: any) {
                 Alert.alert(
                   'خطأ',
-                  e?.message ||
-                    'تعذر استعادة النسخة.'
+                  e?.message || 'تعذر استعادة النسخة.'
                 );
               }
             },
@@ -388,8 +352,7 @@ export default function SettingsScreen() {
     } catch (e: any) {
       Alert.alert(
         'فشل الاستعادة من Drive',
-        e?.message ||
-          'تعذر تحميل النسخة.'
+        e?.message || 'تعذر تحميل النسخة.'
       );
     } finally {
       setDriveBusy(false);
@@ -413,8 +376,7 @@ export default function SettingsScreen() {
     } catch (e: any) {
       Alert.alert(
         'خطأ',
-        e?.message ||
-          'تعذر تسجيل الخروج.'
+        e?.message || 'تعذر تسجيل الخروج.'
       );
     } finally {
       setDriveBusy(false);
@@ -422,14 +384,9 @@ export default function SettingsScreen() {
   };
 
   const openLabEditor = (
-    key:
-      | 'center'
-      | 'directorate'
-      | 'reportTitle'
-      | 'footerText'
+    key: 'center' | 'directorate' | 'reportTitle' | 'footerText'
   ) => {
     setLabModal(key);
-
     setLabText(
       key === 'reportTitle'
         ? printSettings.reportTitle || ''
@@ -443,30 +400,16 @@ export default function SettingsScreen() {
     if (!labModal) return;
 
     if (!labText.trim()) {
-      Alert.alert(
-        'تنبيه',
-        'يرجى إدخال النص.'
-      );
+      Alert.alert('تنبيه', 'يرجى إدخال النص.');
       return;
     }
 
     if (labModal === 'reportTitle') {
-      await updatePrint(
-        'reportTitle',
-        labText.trim()
-      );
-    } else if (
-      labModal === 'footerText'
-    ) {
-      await updatePrint(
-        'footerText',
-        labText.trim()
-      );
+      await updatePrint('reportTitle', labText.trim());
+    } else if (labModal === 'footerText') {
+      await updatePrint('footerText', labText.trim());
     } else {
-      await updateSetting(
-        labModal,
-        labText.trim()
-      );
+      await updateSetting(labModal, labText.trim());
     }
 
     setLabModal(null);
@@ -476,25 +419,14 @@ export default function SettingsScreen() {
     const name = priceName.trim();
 
     if (!name) {
-      Alert.alert(
-        'تنبيه',
-        'أدخل اسم الفحص.'
-      );
+      Alert.alert('تنبيه', 'أدخل اسم الفحص.');
       return;
     }
 
-    const value = Number(
-      priceValue
-    );
+    const value = Number(priceValue);
 
-    if (
-      !Number.isFinite(value) ||
-      value < 0
-    ) {
-      Alert.alert(
-        'تنبيه',
-        'أدخل سعرًا صحيحًا.'
-      );
+    if (!Number.isFinite(value) || value < 0) {
+      Alert.alert('تنبيه', 'أدخل سعرًا صحيحًا.');
       return;
     }
 
@@ -503,44 +435,29 @@ export default function SettingsScreen() {
       [name]: value,
     };
 
-    await updateSetting(
-      'testPrices',
-      prices
-    );
+    await updateSetting('testPrices', prices);
 
     setPriceName('');
     setPriceValue('');
 
-    Alert.alert(
-      'تم',
-      'تم حفظ سعر الفحص.'
-    );
+    Alert.alert('تم', 'تم حفظ سعر الفحص.');
   };
 
-  const deletePrice = async (
-    name: string
-  ) => {
+  const deletePrice = async (name: string) => {
     const prices = {
       ...(settings.testPrices || {}),
     };
 
     delete prices[name];
 
-    await updateSetting(
-      'testPrices',
-      prices
-    );
+    await updateSetting('testPrices', prices);
   };
 
   const addCriticalRange = async () => {
-    const name =
-      criticalName.trim();
+    const name = criticalName.trim();
 
     if (!name) {
-      Alert.alert(
-        'تنبيه',
-        'أدخل اسم الفحص.'
-      );
+      Alert.alert('تنبيه', 'أدخل اسم الفحص.');
       return;
     }
 
@@ -555,100 +472,76 @@ export default function SettingsScreen() {
         : Number(criticalHigh);
 
     if (
-      (low !== '' &&
-        !Number.isFinite(low)) ||
-      (high !== '' &&
-        !Number.isFinite(high))
+      (low !== '' && !Number.isFinite(low)) ||
+      (high !== '' && !Number.isFinite(high))
     ) {
-      Alert.alert(
-        'تنبيه',
-        'أدخل حدودًا رقمية صحيحة.'
-      );
+      Alert.alert('تنبيه', 'أدخل حدودًا رقمية صحيحة.');
       return;
     }
 
     const ranges = {
-      ...(settings.criticalRanges ||
-        {}),
+      ...(settings.criticalRanges || {}),
       [name]: {
         low,
         high,
       },
     };
 
-    await updateSetting(
-      'criticalRanges',
-      ranges
-    );
+    await updateSetting('criticalRanges', ranges);
 
     setCriticalName('');
     setCriticalLow('');
     setCriticalHigh('');
 
-    Alert.alert(
-      'تم',
-      'تم حفظ الحدود الحرجة.'
-    );
+    Alert.alert('تم', 'تم حفظ الحدود الحرجة.');
   };
 
-  const deleteCriticalRange = async (
-    name: string
-  ) => {
+  const deleteCriticalRange = async (name: string) => {
     const ranges = {
-      ...(settings.criticalRanges ||
-        {}),
+      ...(settings.criticalRanges || {}),
     };
 
     delete ranges[name];
 
-    await updateSetting(
-      'criticalRanges',
-      ranges
-    );
+    await updateSetting('criticalRanges', ranges);
   };
 
-  const resetPrintSettings =
-    async () => {
-      const defaults = {
-        paper: 'A4',
-        orientation: 'portrait',
-        layout: 'auto',
-        gap: 4,
-        marginTop: 8,
-        marginRight: 8,
-        marginBottom: 8,
-        marginLeft: 8,
-        fontSize: 13,
-        tableFontSize: 11,
-        fontFamily: 'Tajawal',
-        showLogo: true,
-        logoPosition: 'right',
-        logoSize: 24,
-        reportTitle:
-          'تقرير الفحوصات المخبرية',
-        showCenter: true,
-        showDirectorate: true,
-        showDate: true,
-        showSeq: true,
-        showNotes: true,
-        showFooter: true,
-        showBorder: true,
-        borderColor: '#777777',
-        showNormal: true,
-        footerText:
-          'مع تمنياتنا بالصحة والعافية',
-      };
-
-      await setSetting(
-        'printSettings',
-        defaults
-      );
-
-      Alert.alert(
-        'تم',
-        'تمت إعادة إعدادات الطباعة إلى الإعدادات الافتراضية.'
-      );
+  const resetPrintSettings = async () => {
+    const defaults = {
+      paper: 'A4',
+      orientation: 'portrait',
+      layout: 'auto',
+      gap: 4,
+      marginTop: 8,
+      marginRight: 8,
+      marginBottom: 8,
+      marginLeft: 8,
+      fontSize: 13,
+      tableFontSize: 11,
+      fontFamily: 'Tajawal',
+      showLogo: true,
+      logoPosition: 'right',
+      logoSize: 24,
+      reportTitle: 'تقرير الفحوصات المخبرية',
+      showCenter: true,
+      showDirectorate: true,
+      showDate: true,
+      showSeq: true,
+      showNotes: true,
+      showFooter: true,
+      showBorder: true,
+      borderColor: '#777777',
+      showNormal: true,
+      footerText: 'مع تمنياتنا بالصحة والعافية',
     };
+
+    await setSetting('printSettings', defaults);
+
+    Alert.alert(
+      'تم',
+      'تمت إعادة إعدادات الطباعة إلى الإعدادات الافتراضية.'
+    );
+  };
 
   const changeLogo = () => {
     Alert.alert(
@@ -661,9 +554,7 @@ export default function SettingsScreen() {
     key: string,
     defaultValue: number
   ) => {
-    const value = Number(
-      printSettings[key]
-    );
+    const value = Number(printSettings[key]);
 
     return Number.isFinite(value)
       ? value
@@ -671,31 +562,22 @@ export default function SettingsScreen() {
   };
 
   const renderChoice = (
-    items: {
-      key: any;
-      name: string;
-    }[],
+    items: { key: any; name: string }[],
     selected: any,
-    onSelect: (
-      value: any
-    ) => void
+    onSelect: (value: any) => void
   ) => {
     return (
       <View style={styles.chips}>
         {items.map((item) => {
-          const active =
-            selected === item.key;
+          const active = selected === item.key;
 
           return (
             <TouchableOpacity
               key={String(item.key)}
-              onPress={() =>
-                onSelect(item.key)
-              }
+              onPress={() => onSelect(item.key)}
               style={[
                 styles.chip,
-                active &&
-                  styles.chipOn,
+                active && styles.chipOn,
               ]}
             >
               <Text
@@ -712,29 +594,37 @@ export default function SettingsScreen() {
         })}
       </View>
     );
-  };  const renderNumberInput = (
+  };
+
+  const renderNumberInput = (
     label: string,
     value: number,
     onChange: (value: number) => void,
-    min = 0,
-    max = 100
+    min?: number,
+    max?: number
   ) => {
     return (
       <View style={styles.numberRow}>
-        <Text style={styles.inputLabel}>{label}</Text>
+        <Text style={styles.numberLabel}>{label}</Text>
 
         <TextInput
           value={String(value)}
           onChangeText={(text) => {
-            const parsed = Number(text);
-            if (!Number.isNaN(parsed)) {
-              onChange(
-                Math.max(
-                  min,
-                  Math.min(max, parsed)
-                )
-              );
+            const n = Number(text);
+
+            if (!Number.isFinite(n)) return;
+
+            let result = n;
+
+            if (typeof min === 'number') {
+              result = Math.max(min, result);
             }
+
+            if (typeof max === 'number') {
+              result = Math.min(max, result);
+            }
+
+            onChange(result);
           }}
           keyboardType="numeric"
           style={styles.numberInput}
@@ -750,2366 +640,1631 @@ export default function SettingsScreen() {
   ) => {
     return (
       <View style={styles.switchRow}>
-        <Text style={styles.switchLabel}>
-          {label}
-        </Text>
+        <Text style={styles.switchText}>{label}</Text>
 
         <Switch
-          value={value}
+          value={!!value}
           onValueChange={onChange}
         />
       </View>
     );
   };
 
-  const prices =
-    settings.testPrices || {};
+  const prices = settings.testPrices || {};
+  const priceEntries = Object.entries(prices);
 
-  const criticalRanges =
-    settings.criticalRanges || {};
+  const criticalRanges = settings.criticalRanges || {};
+  const criticalEntries = Object.entries(criticalRanges);
 
   return (
-    <SafeAreaView
-      style={[
-        styles.safe,
-        settings.darkMode &&
-          styles.safeDark,
-      ]}
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
     >
-      <ScrollView
-        contentContainerStyle={
-          styles.container
-        }
-        showsVerticalScrollIndicator={
-          false
-        }
-      >
-        {/* العنوان */}
-        <View style={styles.header}>
-          <View>
-            <Text
-              style={styles.headerTitle}
-            >
-              إعدادات المختبر
-            </Text>
+      <Text style={styles.h}>
+        ⚙ إعدادات المختبر
+      </Text>
 
-            <Text
-              style={styles.headerSubtitle}
-            >
-              التحكم الكامل بإعدادات
-              التطبيق
-            </Text>
-          </View>
+      {/* ===================== بيانات المختبر ===================== */}
 
-          <TouchableOpacity
-            onPress={apply}
-            style={styles.saveButton}
-          >
-            <Text
-              style={styles.saveButtonText}
-            >
-              حفظ
-            </Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.card}>
+        <Text style={styles.title}>
+          🏥 بيانات المختبر
+        </Text>
 
-        {/* =========================
-            بيانات المختبر
-        ========================= */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            🏥 بيانات المختبر
+        <Text style={styles.label}>
+          اسم المركز / المختبر
+        </Text>
+
+        <TouchableOpacity
+          style={styles.value}
+          onPress={() => openLabEditor('center')}
+        >
+          <Text style={styles.valueText}>
+            {settings.center ||
+              'مركز الرعاية الصحية الأولية'}
           </Text>
+        </TouchableOpacity>
 
-          <Text style={styles.inputLabel}>
-            اسم المركز / المختبر
+        <Text style={styles.label}>
+          المديرية / القطاع
+        </Text>
+
+        <TouchableOpacity
+          style={styles.value}
+          onPress={() =>
+            openLabEditor('directorate')
+          }
+        >
+          <Text style={styles.valueText}>
+            {settings.directorate ||
+              'دائرة الصحة / قطاع الرعاية'}
           </Text>
+        </TouchableOpacity>
 
-          <TextInput
-            value={settings.center}
-            onChangeText={(value) =>
-              updateSetting(
-                "center",
-                value
-              )
-            }
-            placeholder="اسم المركز"
-            style={styles.input}
-          />
+        <Text style={styles.label}>
+          الشعار
+        </Text>
 
-          <Text style={styles.inputLabel}>
-            الدائرة / القطاع
+        <TouchableOpacity
+          style={styles.btn2}
+          onPress={changeLogo}
+        >
+          <Text style={styles.btn2Text}>
+            🖼️ إدارة شعار المختبر
           </Text>
+        </TouchableOpacity>
 
-          <TextInput
-            value={settings.directorate}
-            onChangeText={(value) =>
-              updateSetting(
-                "directorate",
-                value
-              )
-            }
-            placeholder="الدائرة / القطاع"
-            style={styles.input}
-          />
-
-          <View style={styles.infoBox}>
-            <Text
-              style={styles.infoText}
-            >
-              سيتم استخدام هذه البيانات
-              تلقائياً في التقارير
-              المطبوعة.
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={changeLogo}
-          >
-            <Text
-              style={
-                styles.secondaryButtonText
-              }
-            >
-              🖼️ تغيير شعار المختبر
-            </Text>
-          </TouchableOpacity>
-
-          {settings.logo ? (
-            <Text
-              style={styles.smallText}
-            >
-              تم تعيين شعار للمختبر
-            </Text>
-          ) : (
-            <Text
-              style={styles.smallText}
-            >
-              لم يتم اختيار شعار
-            </Text>
-          )}
-        </View>
-
-        {/* =========================
-            المظهر
-        ========================= */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            🎨 المظهر والألوان
+        {settings.logo ? (
+          <Text style={styles.successText}>
+            ✓ يوجد شعار محفوظ
           </Text>
-
-          <Text style={styles.inputLabel}>
-            القالب
+        ) : (
+          <Text style={styles.note}>
+            لم يتم تحديد شعار حاليًا.
           </Text>
+        )}
+      </View>
 
-          <View style={styles.themeGrid}>
-            {THEMES.map((theme) => {
-              const active =
-                settings.theme ===
-                theme.key;
+      {/* ===================== المظهر ===================== */}
 
-              return (
-                <TouchableOpacity
-                  key={theme.key}
-                  onPress={() =>
-                    updateSetting(
-                      "theme",
-                      theme.key
-                    )
-                  }
+      <View style={styles.card}>
+        <Text style={styles.title}>
+          🎨 المظهر والألوان
+        </Text>
+
+        <Text style={styles.label}>
+          الثيم
+        </Text>
+
+        <View style={styles.themeGrid}>
+          {THEMES.map((theme) => {
+            const active =
+              settings.theme === theme.key;
+
+            return (
+              <TouchableOpacity
+                key={theme.key}
+                onPress={() =>
+                  updateSetting(
+                    'theme',
+                    theme.key
+                  )
+                }
+                style={[
+                  styles.themeItem,
+                  active && styles.themeItemActive,
+                ]}
+              >
+                <View
                   style={[
-                    styles.themeCard,
+                    styles.themeCircle,
+                    {
+                      backgroundColor:
+                        theme.color,
+                    },
+                  ]}
+                />
+
+                <Text
+                  style={[
+                    styles.themeText,
                     active &&
-                      styles.themeCardActive,
+                      styles.themeTextActive,
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.themeCircle,
-                      {
-                        backgroundColor:
-                          theme.color,
-                      },
-                    ]}
-                  />
+                  {theme.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-                  <Text
-                    style={
-                      active
-                        ? styles.themeNameActive
-                        : styles.themeName
-                    }
-                  >
-                    {theme.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+        <Text style={styles.label}>
+          اللون المخصص
+        </Text>
 
-          <Text style={styles.inputLabel}>
-            لون مخصص HEX
-          </Text>
-
+        <View style={styles.colorRow}>
           <TextInput
-            value={
-              settings.customAccent ||
-              ""
-            }
-            onChangeText={(value) =>
+            value={settings.customAccent || ''}
+            onChangeText={(text) =>
               updateSetting(
-                "customAccent",
-                value
+                'customAccent',
+                text
               )
             }
             placeholder="#1d3b36"
-            autoCapitalize="characters"
-            style={styles.input}
+            style={styles.colorInput}
+            autoCapitalize="none"
           />
 
-          {renderSwitch(
-            "الوضع الداكن",
-            settings.darkMode,
-            (value) =>
-              updateSetting(
-                "darkMode",
-                value
-              )
-          )}
-
-          <Text style={styles.inputLabel}>
-            حجم الخط
-          </Text>
-
-          {renderChoice(
-            FONT_SIZES.map((item) => ({
-              key: item.value,
-              name: item.name,
-            })),
-            settings.fontSizePx,
-            (value) =>
-              updateSetting(
-                "fontSizePx",
-                value
-              )
-          )}
-
-          <Text style={styles.inputLabel}>
-            نوع الخط
-          </Text>
-
-          {renderChoice(
-            FONTS.map((font) => ({
-              key: font,
-              name: font,
-            })),
-            settings.fontFamily,
-            (value) =>
-              updateSetting(
-                "fontFamily",
-                value
-              )
-          )}
-
-          <Text style={styles.inputLabel}>
-            كثافة الواجهة
-          </Text>
-
-          {renderChoice(
-            [
+          <View
+            style={[
+              styles.colorPreview,
               {
-                key: "comfortable",
-                name: "مريحة",
+                backgroundColor:
+                  settings.customAccent ||
+                  '#1d3b36',
               },
-              {
-                key: "compact",
-                name: "مضغوطة",
-              },
-            ],
-            settings.density,
-            (value) =>
-              updateSetting(
-                "density",
-                value
-              )
-          )}
-
-          <Text style={styles.inputLabel}>
-            شكل الأيقونات
-          </Text>
-
-          {renderChoice(
-            [
-              {
-                key: "circle",
-                name: "دائرية",
-              },
-              {
-                key: "rounded",
-                name: "مستديرة",
-              },
-              {
-                key: "square",
-                name: "مربعة",
-              },
-            ],
-            settings.iconShape,
-            (value) =>
-              updateSetting(
-                "iconShape",
-                value
-              )
-          )}
-
-          <Text style={styles.inputLabel}>
-            حجم الشعار
-          </Text>
-
-          {renderChoice(
-            [
-              {
-                key: "small",
-                name: "صغير",
-              },
-              {
-                key: "medium",
-                name: "متوسط",
-              },
-              {
-                key: "large",
-                name: "كبير",
-              },
-            ],
-            settings.logoSize,
-            (value) =>
-              updateSetting(
-                "logoSize",
-                value
-              )
-          )}
-
-          {renderSwitch(
-            "إظهار إطار حول الشعار",
-            settings.logoBorder,
-            (value) =>
-              updateSetting(
-                "logoBorder",
-                value
-              )
-          )}
+            ]}
+          />
         </View>
 
-        {/* =========================
-            الأسعار
-        ========================= */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            💰 أسعار الفحوصات
-          </Text>
+        <Text style={styles.note}>
+          أدخل لونًا بصيغة HEX مثل #1d3b36.
+        </Text>
 
-          {renderSwitch(
-            "تفعيل أسعار الفحوصات",
-            settings.pricesEnabled,
-            (value) =>
-              updateSetting(
-                "pricesEnabled",
-                value
-              )
-          )}
-
-          <Text style={styles.smallText}>
-            يمكنك إضافة سعر لكل فحص
-            وسيتم حفظه داخل إعدادات
-            المختبر.
-          </Text>
-
-          <View style={styles.addRow}>
-            <TextInput
-              value={newPriceTest}
-              onChangeText={
-                setNewPriceTest
-              }
-              placeholder="اسم الفحص"
-              style={[
-                styles.input,
-                styles.addInput,
-              ]}
-            />
-
-            <TextInput
-              value={newPriceValue}
-              onChangeText={
-                setNewPriceValue
-              }
-              placeholder="السعر"
-              keyboardType="numeric"
-              style={[
-                styles.input,
-                styles.priceInput,
-              ]}
-            />
-
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={addPrice}
-            >
-              <Text
-                style={styles.addButtonText}
-              >
-                +
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {Object.keys(prices).length ===
-          0 ? (
-            <Text
-              style={styles.emptyText}
-            >
-              لا توجد أسعار مضافة حالياً.
-            </Text>
-          ) : (
-            Object.entries(prices).map(
-              ([testName, price]) => (
-                <View
-                  key={testName}
-                  style={styles.listRow}
-                >
-                  <View
-                    style={
-                      styles.listRowText
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.listTitle
-                      }
-                    >
-                      {testName}
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.listValue
-                      }
-                    >
-                      {String(price)}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={() =>
-                      deletePrice(
-                        testName
-                      )
-                    }
-                    style={
-                      styles.deleteSmall
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.deleteSmallText
-                      }
-                    >
-                      حذف
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )
+        {renderSwitch(
+          'الوضع الداكن',
+          !!settings.darkMode,
+          (value) =>
+            updateSetting(
+              'darkMode',
+              value
             )
-          )}
-        </View>
+        )}
 
-        {/* =========================
-            الحدود الحرجة
-        ========================= */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            🚨 الحدود الحرجة
-          </Text>
-
-          {renderSwitch(
-            "تفعيل تنبيهات النتائج الحرجة",
-            settings.criticalAlertsEnabled,
-            (value) =>
-              updateSetting(
-                "criticalAlertsEnabled",
-                value
-              )
-          )}
-
-          <Text style={styles.smallText}>
-            أدخل الحد الأدنى والأعلى
-            للفحص ليتم استخدامهما
-            لاحقاً في تنبيهات النتائج.
-          </Text>
-
-          <View style={styles.addRangeRow}>
-            <TextInput
-              value={newRangeTest}
-              onChangeText={
-                setNewRangeTest
-              }
-              placeholder="اسم الفحص"
-              style={styles.rangeTestInput}
-            />
-
-            <TextInput
-              value={newRangeLow}
-              onChangeText={
-                setNewRangeLow
-              }
-              placeholder="من"
-              keyboardType="numeric"
-              style={styles.rangeNumberInput}
-            />
-
-            <TextInput
-              value={newRangeHigh}
-              onChangeText={
-                setNewRangeHigh
-              }
-              placeholder="إلى"
-              keyboardType="numeric"
-              style={styles.rangeNumberInput}
-            />
-
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={
-                addCriticalRange
-              }
-            >
-              <Text
-                style={styles.addButtonText}
-              >
-                +
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {Object.keys(
-            criticalRanges
-          ).length === 0 ? (
-            <Text
-              style={styles.emptyText}
-            >
-              لا توجد حدود حرجة مضافة
-              حالياً.
-            </Text>
-          ) : (
-            Object.entries(
-              criticalRanges
-            ).map(
-              ([testName, range]) => (
-                <View
-                  key={testName}
-                  style={styles.listRow}
-                >
-                  <View
-                    style={
-                      styles.listRowText
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.listTitle
-                      }
-                    >
-                      {testName}
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.listValue
-                      }
-                    >
-                      {String(
-                        (range as any)
-                          ?.low ?? ""
-                      )}{" "}
-                      -{" "}
-                      {String(
-                        (range as any)
-                          ?.high ?? ""
-                      )}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={() =>
-                      deleteCriticalRange(
-                        testName
-                      )
-                    }
-                    style={
-                      styles.deleteSmall
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.deleteSmallText
-                      }
-                    >
-                      حذف
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )
-            )
-          )}
-        </View>
-
-        {/* =========================
-            الإحصائيات
-        ========================= */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            📊 الإحصائيات
-          </Text>
-
-          {renderSwitch(
-            "إظهار الجنس في الإحصائيات",
-            settings.statsShowGender,
-            (value) =>
-              updateSetting(
-                "statsShowGender",
-                value
-              )
-          )}
-
-          {renderSwitch(
-            "إظهار الرسم البياني",
-            settings.statsShowChart,
-            (value) =>
-              updateSetting(
-                "statsShowChart",
-                value
-              )
-          )}
-
-          {renderSwitch(
-            "إظهار التفاصيل تلقائياً",
-            settings.statsAutoDetails,
-            (value) =>
-              updateSetting(
-                "statsAutoDetails",
-                value
-              )
-          )}
-        </View>
-
-        {/* =========================
-            النسخ الاحتياطي التلقائي
-        ========================= */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            🔄 النسخ الاحتياطي التلقائي
-          </Text>
-
-          <Text style={styles.inputLabel}>
-            طريقة النسخ التلقائي
-          </Text>
-
-          {renderChoice(
-            [
-              {
-                key: "off",
-                name: "متوقف",
-              },
-              {
-                key: "daily",
-                name: "يومي",
-              },
-              {
-                key: "weekly",
-                name: "أسبوعي",
-              },
-            ],
-            settings.autoDriveBackupMode,
-            (value) =>
-              updateSetting(
-                "autoDriveBackupMode",
-                value
-              )
-          )}
-
-          {renderNumberInput(
-            "عدد النسخ المحتفظ بها",
-            settings.driveBackupRetention,
-            (value) =>
-              updateSetting(
-                "driveBackupRetention",
-                value
-              ),
-            1,
-            20
-          )}
-        </View>
-
-      =========================
-            Google Drive
-        ========================= */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            ☁️ Google Drive
-          </Text>
-
-          <Text
-            style={styles.driveStatusText}
-          >
-            {driveUser
-              ? `الحساب: ${
-                  driveUser.email ||
-                  driveUser.name ||
-                  "تم تسجيل الدخول"
-                }`
-              : "غير مسجل الدخول"}
-          </Text>
-
-          {driveUser ? (
-            <View
-              style={styles.buttonGroup}
-            >
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={driveBackup}
-              >
-                <Text
-                  style={
-                    styles.primaryButtonText
-                  }
-                >
-                  ☁️ نسخ احتياطي إلى Google
-                  Drive
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.secondaryButton}
-                onPress={driveRestore}
-              >
-                <Text
-                  style={
-                    styles.secondaryButtonText
-                  }
-                >
-                  ♻️ استعادة من Google Drive
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.dangerButton}
-                onPress={signOut}
-              >
-                <Text
-                  style={styles.dangerText}
-                >
-                  تسجيل الخروج من Google
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={signIn}
-            >
-              <Text
-                style={
-                  styles.primaryButtonText
-                }
-              >
-                🔑 تسجيل الدخول بحساب Google
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {driveSummary ? (
-            <View
-              style={styles.infoBox}
-            >
-              <Text
-                style={styles.infoText}
-              >
-                {driveSummary}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* =========================
-            النسخ المحلي
-        ========================= */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            💾 النسخ الاحتياطي المحلي
-          </Text>
-
-          <Text
-            style={styles.smallText}
-          >
-            احفظ نسخة كاملة من بيانات
-            المختبر على الجهاز أو استورد
-            نسخة سابقة.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={backup}
-          >
-            <Text
-              style={
-                styles.primaryButtonText
-              }
-            >
-              💾 إنشاء نسخة احتياطية
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={importFile}
-          >
-            <Text
-              style={
-                styles.secondaryButtonText
-              }
-            >
-              📥 استيراد نسخة احتياطية
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* =========================
-            بداية إعدادات الطباعة
-        ========================= */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            🖨️ إعدادات الطباعة والتقارير
-          </Text>
-
-          <Text
-            style={styles.smallText}
-          >
-            هذه الإعدادات تحفظ شكل
-            التقارير ليتم تطبيقها على
-            التقارير المطبوعة لاحقاً.
-          </Text>
-
-          <Text style={styles.inputLabel}>
-            حجم الورق
-          </Text>
-
-          {renderChoice(
-            PAPER_OPTIONS.map((item) => ({
-              key: item.key,
-              name: item.name,
-            })),
-            settings.printSettings.paper,
-            (value) =>
-              updatePrint({
-                paper: value,
-              })
-          )}
-
-          <Text style={styles.inputLabel}>
-            اتجاه الصفحة
-          </Text>
-
-          {renderChoice(
-            [
-              {
-                key: "portrait",
-                name: "عمودي",
-              },
-              {
-                key: "landscape",
-                name: "أفقي",
-              },
-            ],
-            settings.printSettings
-              .orientation,
-            (value) =>
-              updatePrint({
-                orientation: value,
-              })
-          )}
-
-          <Text style={styles.inputLabel}>
-            تخطيط التقارير
-          </Text>
-
-          {renderChoice(
-            PRINT_LAYOUTS.map((item) => ({
-              key: item.key,
-              name: item.name,
-            })),
-            settings.printSettings.layout,
-            (value) =>
-              updatePrint({
-                layout: value,
-              })
-          )}
-
-          {renderNumberInput(
-            "المسافة بين التقارير",
-            settings.printSettings.gap,
-            (value) =>
-              updatePrint({
-                gap: value,
-              }),
-            0,
-            30
-          )}
-
-          <Text
-            style={styles.subSectionTitle}
-          >
-            الهوامش
-          </Text>
-
-          {renderNumberInput(
-            "الهامش العلوي",
-            settings.printSettings
-              .marginTop,
-            (value) =>
-              updatePrint({
-                marginTop: value,
-              }),
-            0,
-            50
-          )}
-
-          {renderNumberInput(
-            "الهامش الأيمن",
-            settings.printSettings
-              .marginRight,
-            (value) =>
-              updatePrint({
-                marginRight: value,
-              }),
-            0,
-            50
-          )}
-
-          {renderNumberInput(
-            "الهامش السفلي",
-            settings.printSettings
-              .marginBottom,
-            (value) =>
-              updatePrint({
-                marginBottom: value,
-              }),
-            0,
-            50
-          )}
-
-          {renderNumberInput(
-            "الهامش الأيسر",
-            settings.printSettings
-              .marginLeft,
-            (value) =>
-              updatePrint({
-                marginLeft: value,
-              }),
-            0,
-            50
-          )}
-
-        </View>
-        {/* =================================
-            إعدادات الطباعة - الخط والتقرير
-        ================================= */}
-
-        <Text
-          style={
-            styles.inputLabel
-          }
-        >
-          نوع خط التقرير
+        <Text style={styles.label}>
+          حجم الخط
         </Text>
 
         {renderChoice(
-          FONTS.map(
-            (font) => ({
-              key: font,
-              name: font,
-            })
-          ),
-          settings.printSettings
-            .fontFamily,
+          FONT_SIZES,
+          Number(settings.fontSizePx || 14),
           (value) =>
-            updatePrint({
-              fontFamily:
-                value,
-            })
+            updateSetting(
+              'fontSizePx',
+              value
+            )
         )}
 
+        <Text style={styles.label}>
+          نوع الخط
+        </Text>
+
+        {renderChoice(
+          FONTS.map((font) => ({
+            key: font,
+            name: font,
+          })),
+          settings.fontFamily ||
+            'Tajawal',
+          (value) =>
+            updateSetting(
+              'fontFamily',
+              value
+            )
+        )}
+
+        <Text style={styles.label}>
+          كثافة الواجهة
+        </Text>
+
+        {renderChoice(
+          [
+            {
+              key: 'comfortable',
+              name: 'مريحة',
+            },
+            {
+              key: 'compact',
+              name: 'مضغوطة',
+            },
+          ],
+          settings.density ||
+            'comfortable',
+          (value) =>
+            updateSetting(
+              'density',
+              value
+            )
+        )}
+
+        <Text style={styles.label}>
+          شكل الأيقونات
+        </Text>
+
+        {renderChoice(
+          [
+            {
+              key: 'circle',
+              name: 'دائرية',
+            },
+            {
+              key: 'rounded',
+              name: 'مستديرة',
+            },
+            {
+              key: 'square',
+              name: 'مربعة',
+            },
+          ],
+          settings.iconShape ||
+            'circle',
+          (value) =>
+            updateSetting(
+              'iconShape',
+              value
+            )
+        )}
+
+        <Text style={styles.label}>
+          حجم الشعار
+        </Text>
+
+        {renderChoice(
+          [
+            {
+              key: 'small',
+              name: 'صغير',
+            },
+            {
+              key: 'medium',
+              name: 'متوسط',
+            },
+            {
+              key: 'large',
+              name: 'كبير',
+            },
+          ],
+          settings.logoSize ||
+            'medium',
+          (value) =>
+            updateSetting(
+              'logoSize',
+              value
+            )
+        )}
+
+        {renderSwitch(
+          'إطار الشعار',
+          settings.logoBorder !== false,
+          (value) =>
+            updateSetting(
+              'logoBorder',
+              value
+            )
+        )}
+      </View>
+
+      {/* ===================== الأسعار ===================== */}
+
+      <View style={styles.card}>
+        <Text style={styles.title}>
+          💰 أسعار الفحوصات
+        </Text>
+
+        {renderSwitch(
+          'تفعيل الأسعار',
+          !!settings.pricesEnabled,
+          (value) =>
+            updateSetting(
+              'pricesEnabled',
+              value
+            )
+        )}
+
+        {settings.pricesEnabled && (
+          <>
+            <Text style={styles.note}>
+              أضف سعر كل فحص. سيتم استخدام هذه
+              البيانات لاحقًا في شاشة المريض
+              والفاتورة والإحصائيات.
+            </Text>
+
+            <TextInput
+              value={priceName}
+              onChangeText={setPriceName}
+              placeholder="اسم الفحص"
+              style={styles.input}
+              textAlign="right"
+            />
+
+            <TextInput
+              value={priceValue}
+              onChangeText={setPriceValue}
+              placeholder="السعر"
+              keyboardType="numeric"
+              style={styles.input}
+              textAlign="right"
+            />
+
+            <TouchableOpacity
+              style={styles.btn}
+              onPress={addPrice}
+            >
+              <Text style={styles.btnText}>
+                ➕ إضافة / تحديث سعر
+              </Text>
+            </TouchableOpacity>
+
+            {priceEntries.length > 0 && (
+              <View style={styles.listBox}>
+                {priceEntries.map(
+                  ([name, price]) => (
+                    <View
+                      key={name}
+                      style={styles.listRow}
+                    >
+                      <TouchableOpacity
+                        onPress={() =>
+                          deletePrice(name)
+                        }
+                      >
+                        <Text
+                          style={
+                            styles.deleteText
+                          }
+                        >
+                          حذف
+                        </Text>
+                      </TouchableOpacity>
+
+                      <Text
+                        style={styles.listText}
+                      >
+                        {name} — {String(price)}
+                      </Text>
+                    </View>
+                  )
+                )}
+              </View>
+            )}
+          </>
+        )}
+      </View>
+
+      {/* ===================== القيم الحرجة ===================== */}
+
+      <View style={styles.card}>
+        <Text style={styles.title}>
+          🚨 القيم الحرجة والتنبيهات
+        </Text>
+
+        {renderSwitch(
+          'تفعيل تنبيهات القيم الحرجة',
+          !!settings.criticalAlertsEnabled,
+          (value) =>
+            updateSetting(
+              'criticalAlertsEnabled',
+              value
+            )
+        )}
+
+        <Text style={styles.note}>
+          يمكن تحديد الحد الأدنى والأعلى للفحوصات
+          التي تريد مراقبتها.
+        </Text>
+
+        <TextInput
+          value={criticalName}
+          onChangeText={setCriticalName}
+          placeholder="اسم الفحص"
+          style={styles.input}
+          textAlign="right"
+        />
+
+        <View style={styles.inlineInputs}>
+          <TextInput
+            value={criticalLow}
+            onChangeText={setCriticalLow}
+            placeholder="الحد الأدنى"
+            keyboardType="numeric"
+            style={[
+              styles.input,
+              styles.halfInput,
+            ]}
+            textAlign="right"
+          />
+
+          <TextInput
+            value={criticalHigh}
+            onChangeText={setCriticalHigh}
+            placeholder="الحد الأعلى"
+            keyboardType="numeric"
+            style={[
+              styles.input,
+              styles.halfInput,
+            ]}
+            textAlign="right"
+          />
+        </View>
+
+        <TouchableOpacity
+          style={styles.btn}
+          onPress={addCriticalRange}
+        >
+          <Text style={styles.btnText}>
+            ➕ حفظ الحدود الحرجة
+          </Text>
+        </TouchableOpacity>
+
+        {criticalEntries.length > 0 && (
+          <View style={styles.listBox}>
+            {criticalEntries.map(
+              ([name, range]: any) => (
+                <View
+                  key={name}
+                  style={styles.listRow}
+                >
+                  <TouchableOpacity
+                    onPress={() =>
+                      deleteCriticalRange(
+                        name
+                      )
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.deleteText
+                      }
+                    >
+                      حذف
+                    </Text>
+                  </TouchableOpacity>
+
+                  <Text
+                    style={styles.listText}
+                  >
+                    {name} — من{' '}
+                    {String(
+                      range?.low ?? ''
+                    )}{' '}
+                    إلى{' '}
+                    {String(
+                      range?.high ?? ''
+                    )}
+                  </Text>
+                </View>
+              )
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* ===================== الإحصائيات ===================== */}
+
+      <View style={styles.card}>
+        <Text style={styles.title}>
+          📊 إعدادات الإحصائيات
+        </Text>
+
+        {renderSwitch(
+          'إظهار توزيع الجنس',
+          settings.statsShowGender !== false,
+          (value) =>
+            updateSetting(
+              'statsShowGender',
+              value
+            )
+        )}
+
+        {renderSwitch(
+          'إظهار المخطط',
+          settings.statsShowChart !== false,
+          (value) =>
+            updateSetting(
+              'statsShowChart',
+              value
+            )
+        )}
+
+        {renderSwitch(
+          'إظهار التفاصيل تلقائيًا',
+          !!settings.statsAutoDetails,
+          (value) =>
+            updateSetting(
+              'statsAutoDetails',
+              value
+            )
+        )}
+      </View>
+
+      {/* ===================== Google Drive ===================== */}
+
+      <View style={styles.card}>
+        <Text style={styles.title}>
+          ☁️ Google Drive — النسخ الاحتياطي
+        </Text>
+
+        <View style={styles.accountBox}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.accountName}>
+              {googleUser?.name ||
+                'غير متصل بحساب Google'}
+            </Text>
+
+            <Text style={styles.desc}>
+              {googleUser?.email ||
+                'سجّل الدخول لتمكين النسخ السحابي والاستعادة.'}
+            </Text>
+          </View>
+
+          <Text style={styles.accountIcon}>
+            {googleUser ? '✓' : '🔑'}
+          </Text>
+        </View>
+
+        {!googleUser ? (
+          <TouchableOpacity
+            style={styles.btn}
+            onPress={signIn}
+            disabled={driveBusy}
+          >
+            <Text style={styles.btnText}>
+              {driveBusy
+                ? 'جاري الاتصال...'
+                : '🔑 تسجيل الدخول بحساب Google'}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={styles.btn}
+              onPress={driveBackup}
+              disabled={driveBusy}
+            >
+              <Text style={styles.btnText}>
+                ☁️ رفع نسخة إلى Google Drive
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.btn2}
+              onPress={driveRestore}
+              disabled={driveBusy}
+            >
+              <Text style={styles.btn2Text}>
+                ♻️ استعادة أحدث نسخة من Drive
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.btnDanger}
+              onPress={signOut}
+              disabled={driveBusy}
+            >
+              <Text style={styles.btnDangerText}>
+                تسجيل الخروج من Google
+              </Text>
+            </TouchableOpacity>
+
+            {driveSummary && (
+              <Text style={styles.driveMeta}>
+                📦 النسخ المحفوظة:{' '}
+                {driveSummary.retained} /{' '}
+                {driveSummary.retention}
+                {driveSummary.latest
+                  ?.modifiedTime
+                  ? `\n📅 آخر نسخة: ${new Date(
+                      driveSummary.latest.modifiedTime
+                    ).toLocaleString('ar-IQ')}`
+                  : ''}
+              </Text>
+            )}
+          </>
+        )}
+
+        {driveBusy && (
+          <ActivityIndicator
+            style={{ marginTop: 10 }}
+          />
+        )}
+
+        <Text style={styles.note}>
+          يتم استخدام صلاحية Google Drive الخاصة
+          بالتطبيق لملفات النسخ التي ينشئها
+          التطبيق فقط.
+        </Text>
+      </View>
+
+      {/* ===================== النسخ المحلي ===================== */}
+
+      <View style={styles.card}>
+        <Text style={styles.title}>
+          💾 النسخ الاحتياطي والاستيراد المحلي
+        </Text>
+
+        <Text style={styles.desc}>
+          النسخة تشمل المرضى والإعدادات وسجل
+          التعديلات.
+        </Text>
+
+        <TouchableOpacity
+          style={styles.btn}
+          onPress={backup}
+        >
+          <Text style={styles.btnText}>
+            📤 إنشاء ومشاركة نسخة احتياطية
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.btn2}
+          onPress={importFile}
+        >
+          <Text style={styles.btn2Text}>
+            📥 استيراد نسخة احتياطية
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* ===================== النسخ التلقائي ===================== */}
+
+      <View style={styles.card}>
+        <Text style={styles.title}>
+          🔄 النسخ التلقائي إلى Google Drive
+        </Text>
+
+        <Text style={styles.label}>
+          وضع النسخ التلقائي
+        </Text>
+
+        {renderChoice(
+          [
+            {
+              key: 'off',
+              name: 'إيقاف',
+            },
+            {
+              key: 'daily',
+              name: 'يومي',
+            },
+            {
+              key: 'weekly',
+              name: 'أسبوعي',
+            },
+          ],
+          settings.autoDriveBackupMode ||
+            'off',
+          (value) =>
+            updateSetting(
+              'autoDriveBackupMode',
+              value
+            )
+        )}
 
         {renderNumberInput(
-          "حجم خط التقرير",
-          settings.printSettings
-            .fontSize,
+          'عدد النسخ المحتفظ بها',
+          Number(
+            settings.driveBackupRetention ||
+              5
+          ),
           (value) =>
-            updatePrint({
-              fontSize:
-                value,
-            }),
+            updateSetting(
+              'driveBackupRetention',
+              value
+            ),
+          1,
+          50
+        )}
+      </View>
+
+      {/* ===================== الطباعة ===================== */}
+
+      <View style={styles.card}>
+        <Text style={styles.title}>
+          🖨️ إعدادات الطباعة المتقدمة
+        </Text>
+
+        <Text style={styles.sectionSubtitle}>
+          الصفحة والتخطيط
+        </Text>
+
+        <Text style={styles.label}>
+          حجم الورق
+        </Text>
+
+        {renderChoice(
+          PAPER_OPTIONS,
+          printSettings.paper || 'A4',
+          (value) =>
+            updatePrint('paper', value)
+        )}
+
+        <Text style={styles.label}>
+          اتجاه الصفحة
+        </Text>
+
+        {renderChoice(
+          [
+            {
+              key: 'portrait',
+              name: 'عمودي',
+            },
+            {
+              key: 'landscape',
+              name: 'أفقي',
+            },
+          ],
+          printSettings.orientation ||
+            'portrait',
+          (value) =>
+            updatePrint(
+              'orientation',
+              value
+            )
+        )}
+
+        <Text style={styles.label}>
+          عدد التقارير في الصفحة
+        </Text>
+
+        {renderChoice(
+          PRINT_LAYOUTS,
+          printSettings.layout ||
+            'auto',
+          (value) =>
+            updatePrint(
+              'layout',
+              value
+            )
+        )}
+
+        {renderNumberInput(
+          'المسافة بين التقارير',
+          printSettingNumber(
+            'gap',
+            4
+          ),
+          (value) =>
+            updatePrint('gap', value),
+          0,
+          30
+        )}
+
+        <Text style={styles.sectionSubtitle}>
+          الهوامش
+        </Text>
+
+        {renderNumberInput(
+          'الهامش العلوي',
+          printSettingNumber(
+            'marginTop',
+            8
+          ),
+          (value) =>
+            updatePrint(
+              'marginTop',
+              value
+            ),
+          0,
+          50
+        )}
+
+        {renderNumberInput(
+          'الهامش الأيمن',
+          printSettingNumber(
+            'marginRight',
+            8
+          ),
+          (value) =>
+            updatePrint(
+              'marginRight',
+              value
+            ),
+          0,
+          50
+        )}
+
+        {renderNumberInput(
+          'الهامش السفلي',
+          printSettingNumber(
+            'marginBottom',
+            8
+          ),
+          (value) =>
+            updatePrint(
+              'marginBottom',
+              value
+            ),
+          0,
+          50
+        )}
+
+        {renderNumberInput(
+          'الهامش الأيسر',
+          printSettingNumber(
+            'marginLeft',
+            8
+          ),
+          (value) =>
+            updatePrint(
+              'marginLeft',
+              value
+            ),
+          0,
+          50
+        )}
+
+        <Text style={styles.sectionSubtitle}>
+          الخط
+        </Text>
+
+        <Text style={styles.label}>
+          نوع الخط
+        </Text>
+
+        {renderChoice(
+          FONTS.map((font) => ({
+            key: font,
+            name: font,
+          })),
+          printSettings.fontFamily ||
+            'Tajawal',
+          (value) =>
+            updatePrint(
+              'fontFamily',
+              value
+            )
+        )}
+
+        {renderNumberInput(
+          'حجم خط التقرير',
+          printSettingNumber(
+            'fontSize',
+            13
+          ),
+          (value) =>
+            updatePrint(
+              'fontSize',
+              value
+            ),
           8,
           22
         )}
 
-
         {renderNumberInput(
-          "حجم خط جدول الفحوصات",
-          settings.printSettings
-            .tableFontSize,
+          'حجم خط الجدول',
+          printSettingNumber(
+            'tableFontSize',
+            11
+          ),
           (value) =>
-            updatePrint({
-              tableFontSize:
-                value,
-            }),
+            updatePrint(
+              'tableFontSize',
+              value
+            ),
           7,
           18
         )}
 
-
-        {/* =================================
-            إعدادات الشعار في التقرير
-        ================================= */}
-
-        <Text
-          style={
-            styles.subSectionTitle
-          }
-        >
-          شعار التقرير
+        <Text style={styles.sectionSubtitle}>
+          الشعار
         </Text>
-
 
         {renderSwitch(
-          "إظهار الشعار في التقرير",
-          settings.printSettings
-            .showLogo,
+          'إظهار الشعار',
+          printSettings.showLogo !== false,
           (value) =>
-            updatePrint({
-              showLogo:
-                value,
-            })
+            updatePrint(
+              'showLogo',
+              value
+            )
         )}
 
-
-        <Text
-          style={
-            styles.inputLabel
-          }
-        >
-          موضع الشعار
+        <Text style={styles.label}>
+          مكان الشعار
         </Text>
 
-
         {renderChoice(
-          LOGO_POSITIONS.map(
-            (item) => ({
-              key:
-                item.key,
-              name:
-                item.name,
-            })
-          ),
-          settings.printSettings
-            .logoPosition,
+          LOGO_POSITIONS,
+          printSettings.logoPosition ||
+            'right',
           (value) =>
-            updatePrint({
-              logoPosition:
-                value,
-            })
+            updatePrint(
+              'logoPosition',
+              value
+            )
         )}
 
-
-        <Text
-          style={
-            styles.inputLabel
-          }
-        >
-          حجم الشعار في التقرير
+        <Text style={styles.label}>
+          حجم الشعار
         </Text>
 
-
         {renderChoice(
-          LOGO_SIZES.map(
-            (item) => ({
-              key:
-                item.key,
-              name:
-                item.name,
-            })
+          LOGO_SIZES,
+          Number(
+            printSettings.logoSize || 24
           ),
-          settings.printSettings
-            .logoSize,
           (value) =>
-            updatePrint({
-              logoSize:
-                value,
-            })
+            updatePrint(
+              'logoSize',
+              value
+            )
         )}
 
+        <Text style={styles.sectionSubtitle}>
+          معلومات التقرير
+        </Text>
 
-        {/* =================================
-            عنوان التقرير
-        ================================= */}
-
-        <Text
-          style={
-            styles.inputLabel
-          }
-        >
+        <Text style={styles.label}>
           عنوان التقرير
         </Text>
 
-
-        <TextInput
-          value={
-            settings.printSettings
-              .reportTitle
-          }
-          onChangeText={(value) =>
-            updatePrint({
-              reportTitle:
-                value,
-            })
-          }
-          placeholder="تقرير الفحوصات المخبرية"
-          style={
-            styles.input
-          }
-        />
-
-
-        {/* =================================
-            عناصر التقرير
-        ================================= */}
-
-        <Text
-          style={
-            styles.subSectionTitle
+        <TouchableOpacity
+          style={styles.value}
+          onPress={() =>
+            openLabEditor('reportTitle')
           }
         >
-          العناصر الظاهرة في التقرير
+          <Text style={styles.valueText}>
+            {printSettings.reportTitle ||
+              'تقرير الفحوصات المخبرية'}
+          </Text>
+        </TouchableOpacity>
+
+        {renderSwitch(
+          'إظهار اسم المركز',
+          printSettings.showCenter !== false,
+          (value) =>
+            updatePrint(
+              'showCenter',
+              value
+            )
+        )}
+
+        {renderSwitch(
+          'إظهار المديرية',
+          printSettings.showDirectorate !== false,
+          (value) =>
+            updatePrint(
+              'showDirectorate',
+              value
+            )
+        )}
+
+        {renderSwitch(
+          'إظهار التاريخ',
+          printSettings.showDate !== false,
+          (value) =>
+            updatePrint(
+              'showDate',
+              value
+            )
+        )}
+
+        {renderSwitch(
+          'إظهار التسلسل',
+          printSettings.showSeq !== false,
+          (value) =>
+            updatePrint(
+              'showSeq',
+              value
+            )
+        )}
+
+        {renderSwitch(
+          'إظهار الملاحظات',
+          printSettings.showNotes !== false,
+          (value) =>
+            updatePrint(
+              'showNotes',
+              value
+            )
+        )}
+
+        {renderSwitch(
+          'إظهار القيم الطبيعية',
+          printSettings.showNormal !== false,
+          (value) =>
+            updatePrint(
+              'showNormal',
+              value
+            )
+        )}
+
+        <Text style={styles.sectionSubtitle}>
+          التذييل والإطار
         </Text>
 
-
         {renderSwitch(
-          "إظهار اسم المركز",
-          settings.printSettings
-            .showCenter,
+          'إظهار التذييل',
+          printSettings.showFooter !== false,
           (value) =>
-            updatePrint({
-              showCenter:
-                value,
-            })
+            updatePrint(
+              'showFooter',
+              value
+            )
         )}
 
-
-        {renderSwitch(
-          "إظهار الدائرة / القطاع",
-          settings.printSettings
-            .showDirectorate,
-          (value) =>
-            updatePrint({
-              showDirectorate:
-                value,
-            })
-        )}
-
-
-        {renderSwitch(
-          "إظهار التاريخ",
-          settings.printSettings
-            .showDate,
-          (value) =>
-            updatePrint({
-              showDate:
-                value,
-            })
-        )}
-
-
-        {renderSwitch(
-          "إظهار التسلسل",
-          settings.printSettings
-            .showSeq,
-          (value) =>
-            updatePrint({
-              showSeq:
-                value,
-            })
-        )}
-
-
-        {renderSwitch(
-          "إظهار الملاحظات",
-          settings.printSettings
-            .showNotes,
-          (value) =>
-            updatePrint({
-              showNotes:
-                value,
-            })
-        )}
-
-
-        {renderSwitch(
-          "إظهار النتائج الطبيعية",
-          settings.printSettings
-            .showNormal,
-          (value) =>
-            updatePrint({
-              showNormal:
-                value,
-            })
-        )}
-
-
-        {/* =================================
-            التذييل
-        ================================= */}
-
-        <Text
-          style={
-            styles.subSectionTitle
-          }
-        >
-          تذييل التقرير
-        </Text>
-
-
-        {renderSwitch(
-          "إظهار التذييل",
-          settings.printSettings
-            .showFooter,
-          (value) =>
-            updatePrint({
-              showFooter:
-                value,
-            })
-        )}
-
-
-        <Text
-          style={
-            styles.inputLabel
-          }
-        >
+        <Text style={styles.label}>
           نص التذييل
         </Text>
 
-
-        <TextInput
-          value={
-            settings.printSettings
-              .footerText
-          }
-          onChangeText={(value) =>
-            updatePrint({
-              footerText:
-                value,
-            })
-          }
-          placeholder="مع تمنياتنا بالصحة والعافية"
-          style={
-            styles.input
-          }
-        />
-
-
-        {/* =================================
-            حدود التقرير
-        ================================= */}
-
-        <Text
-          style={
-            styles.subSectionTitle
+        <TouchableOpacity
+          style={styles.value}
+          onPress={() =>
+            openLabEditor('footerText')
           }
         >
-          حدود التقرير
-        </Text>
-
+          <Text style={styles.valueText}>
+            {printSettings.footerText ||
+              'مع تمنياتنا بالصحة والعافية'}
+          </Text>
+        </TouchableOpacity>
 
         {renderSwitch(
-          "إظهار إطار التقرير",
-          settings.printSettings
-            .showBorder,
+          'إظهار إطار التقرير',
+          printSettings.showBorder !== false,
           (value) =>
-            updatePrint({
-              showBorder:
-                value,
-            })
+            updatePrint(
+              'showBorder',
+              value
+            )
         )}
 
-
-        <Text
-          style={
-            styles.inputLabel
-          }
-        >
+        <Text style={styles.label}>
           لون الإطار
         </Text>
 
-
-        <TextInput
-          value={
-            settings.printSettings
-              .borderColor
-          }
-          onChangeText={(value) =>
-            updatePrint({
-              borderColor:
-                value,
-            })
-          }
-          placeholder="#777777"
-          autoCapitalize="characters"
-          style={
-            styles.input
-          }
-        />
-
-
-        {/* =================================
-            إعادة ضبط الطباعة
-        ================================= */}
-
-        <TouchableOpacity
-          style={
-            styles.resetButton
-          }
-          onPress={
-            resetPrintSettings
-          }
-        >
-
-          <Text
-            style={
-              styles.resetButtonText
+        <View style={styles.colorRow}>
+          <TextInput
+            value={
+              printSettings.borderColor ||
+              '#777777'
             }
-          >
-            🔄 إعادة إعدادات الطباعة
-          </Text>
+            onChangeText={(text) =>
+              updatePrint(
+                'borderColor',
+                text
+              )
+            }
+            placeholder="#777777"
+            style={styles.colorInput}
+            autoCapitalize="none"
+          />
 
-        </TouchableOpacity>
-
+          <View
+            style={[
+              styles.colorPreview,
+              {
+                backgroundColor:
+                  printSettings.borderColor ||
+                  '#777777',
+              },
+            ]}
+          />
         </View>
 
-
-        {/* =================================
-            حالة المشروع
-        ================================= */}
-
-        <View
-          style={
-            styles.section
-          }
-        >
-
-          <Text
-            style={
-              styles.sectionTitle
-            }
-          >
-            ℹ️ حالة المشروع
-          </Text>
-
-
-          <View
-            style={
-              styles.statusRow
-            }
-          >
-
-            <Text
-              style={
-                styles.statusLabel
-              }
-            >
-              إصدار التطبيق
-            </Text>
-
-            <Text
-              style={
-                styles.statusValue
-              }
-            >
-              1.0.0
-            </Text>
-
-          </View>
-
-
-          <View
-            style={
-              styles.statusRow
-            }
-          >
-
-            <Text
-              style={
-                styles.statusLabel
-              }
-            >
-              التخزين المحلي
-            </Text>
-
-            <Text
-              style={
-                styles.statusValue
-              }
-            >
-              فعال
-            </Text>
-
-          </View>
-
-
-          <View
-            style={
-              styles.statusRow
-            }
-          >
-
-            <Text
-              style={
-                styles.statusLabel
-              }
-            >
-              Google Drive
-            </Text>
-
-            <Text
-              style={
-                styles.statusValue
-              }
-            >
-              {driveUser
-                ? "متصل"
-                : "غير متصل"}
-            </Text>
-
-          </View>
-
-        </View>
-
-
-        {/* =================================
-            زر الحفظ النهائي
-        ================================= */}
-
         <TouchableOpacity
-          style={
-            styles.finalSaveButton
-          }
-          onPress={
-            apply
-          }
+          style={styles.btn}
+          onPress={resetPrintSettings}
         >
-
-          <Text
-            style={
-              styles.finalSaveText
-            }
-          >
-            ✓ حفظ جميع الإعدادات
+          <Text style={styles.btnText}>
+            🔄 إعادة إعدادات الطباعة الافتراضية
           </Text>
-
         </TouchableOpacity>
+      </View>
 
+      {/* ===================== حالة المشروع ===================== */}
 
-        <View
-          style={
-            styles.bottomSpace
-          }
-        />
+      <View style={styles.card}>
+        <Text style={styles.title}>
+          📋 حالة المشروع
+        </Text>
 
-      </ScrollView>
+        <Text style={styles.desc}>
+          عدد المرضى: {patients.length}
+        </Text>
 
+        <Text style={styles.desc}>
+          سجل التعديلات: {auditLog.length}
+        </Text>
 
-      {/* ===================================
-          نافذة تعديل بيانات المختبر
-      =================================== */}
+        <Text style={styles.desc}>
+          التخزين: AsyncStorage
+        </Text>
 
-      {labEditorVisible && (
+        <Text style={styles.note}>
+          جميع الإعدادات يتم حفظها تلقائيًا عند
+          تغييرها.
+        </Text>
+      </View>
 
-        <View
-          style={
-            styles.modalOverlay
-          }
-        >
+      {/* ===================== Modal الاستيراد ===================== */}
 
-          <View
-            style={
-              styles.modalBox
-            }
-          >
-
-            <Text
-              style={
-                styles.modalTitle
-              }
-            >
-              {labEditorType ===
-              "center"
-                ? "تعديل اسم المركز"
-                : "تعديل الدائرة / القطاع"}
+      <Modal
+        visible={modal}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setModal(false)
+        }
+      >
+        <View style={styles.overlay}>
+          <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>
+              استيراد النسخة الاحتياطية
             </Text>
 
+            <Text style={styles.desc}>
+              النسخة تحتوي على{' '}
+              {pending?.patients?.length ||
+                0}{' '}
+              مريض.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.btn}
+              onPress={() =>
+                apply('restore')
+              }
+            >
+              <Text style={styles.btnText}>
+                ♻️ استبدال البيانات الحالية
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.btn2}
+              onPress={() =>
+                apply('merge')
+              }
+            >
+              <Text style={styles.btn2Text}>
+                ➕ دمج مع البيانات الحالية
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() =>
+                setModal(false)
+              }
+              style={styles.cancelButton}
+            >
+              <Text>إلغاء</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ===================== Modal النصوص ===================== */}
+
+      <Modal
+        visible={!!labModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setLabModal(null)
+        }
+      >
+        <View style={styles.overlay}>
+          <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>
+              {labModal === 'center'
+                ? 'اسم المختبر'
+                : labModal === 'directorate'
+                ? 'المديرية / القطاع'
+                : labModal === 'reportTitle'
+                ? 'عنوان التقرير'
+                : 'نص التذييل'}
+            </Text>
 
             <TextInput
-              value={
-                labEditorValue
-              }
-              onChangeText={
-                setLabEditorValue
-              }
-              style={
-                styles.modalInput
-              }
+              value={labText}
+              onChangeText={setLabText}
               autoFocus
+              style={styles.input}
+              textAlign="right"
+              multiline
             />
 
-
-            <View
-              style={
-                styles.modalButtons
-              }
+            <TouchableOpacity
+              style={styles.btn}
+              onPress={saveLabText}
             >
+              <Text style={styles.btnText}>
+                حفظ
+              </Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={
-                  styles.modalCancel
-                }
-                onPress={() =>
-                  setLabEditorVisible(
-                    false
-                  )
-                }
-              >
-
-                <Text
-                  style={
-                    styles.modalCancelText
-                  }
-                >
-                  إلغاء
-                </Text>
-
-              </TouchableOpacity>
-
-
-              <TouchableOpacity
-                style={
-                  styles.modalConfirm
-                }
-                onPress={
-                  saveLabText
-                }
-              >
-
-                <Text
-                  style={
-                    styles.modalConfirmText
-                  }
-                >
-                  حفظ
-                </Text>
-
-              </TouchableOpacity>
-
-            </View>
-
+            <TouchableOpacity
+              onPress={() =>
+                setLabModal(null)
+              }
+              style={styles.cancelButton}
+            >
+              <Text>إلغاء</Text>
+            </TouchableOpacity>
           </View>
-
         </View>
-
-      )}
-
-
-      {/* ===================================
-          نافذة الاستيراد
-      =================================== */}
-
-      {importModalVisible && (
-
-        <View
-          style={
-            styles.modalOverlay
-          }
-        >
-
-          <View
-            style={
-              styles.modalBox
-            }
-          >
-
-            <Text
-              style={
-                styles.modalTitle
-              }
-            >
-              استيراد نسخة احتياطية
-            </Text>
-
-
-            <Text
-              style={
-                styles.modalMessage
-              }
-            >
-              سيتم استبدال البيانات
-              الحالية بالبيانات الموجودة
-              في النسخة الاحتياطية.
-            </Text>
-
-
-            <View
-              style={
-                styles.modalButtons
-              }
-            >
-
-              <TouchableOpacity
-                style={
-                  styles.modalCancel
-                }
-                onPress={() =>
-                  setImportModalVisible(
-                    false
-                  )
-                }
-              >
-
-                <Text
-                  style={
-                    styles.modalCancelText
-                  }
-                >
-                  إلغاء
-                </Text>
-
-              </TouchableOpacity>
-
-
-              <TouchableOpacity
-                style={
-                  styles.modalConfirm
-                }
-                onPress={() => {
-
-                  setImportModalVisible(
-                    false
-                  );
-
-                  importFile();
-
-                }}
-              >
-
-                <Text
-                  style={
-                    styles.modalConfirmText
-                  }
-                >
-                  استيراد
-                </Text>
-
-              </TouchableOpacity>
-
-            </View>
-
-          </View>
-
-        </View>
-
-      )}
-
-    </SafeAreaView>
-
+      </Modal>
+    </ScrollView>
   );
+}
 
-}const styles = StyleSheet.create({
-
-  /* =====================================
-     الصفحة
-  ===================================== */
-
-  safe: {
+const styles = StyleSheet.create({
+  root: {
     flex: 1,
-    backgroundColor: "#f5f7f6",
+    backgroundColor: '#f4f7f6',
   },
 
-  safeDark: {
-    backgroundColor: "#111827",
-  },
-
-  container: {
-    padding: 16,
+  content: {
+    padding: 12,
     paddingBottom: 40,
   },
 
-
-  /* =====================================
-     الرأس
-  ===================================== */
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 18,
+  h: {
+    fontSize: 23,
+    fontWeight: '900',
+    textAlign: 'right',
+    color: '#1d3b36',
+    marginBottom: 14,
   },
 
-  headerTextBox: {
-    flex: 1,
-    paddingRight: 12,
-  },
-
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#1d3b36",
-    textAlign: "right",
-  },
-
-  headerSubtitle: {
-    marginTop: 4,
-    fontSize: 13,
-    color: "#6b7280",
-    textAlign: "right",
-  },
-
-  saveButton: {
-    backgroundColor: "#1d3b36",
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-
-  saveButtonText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-
-
-  /* =====================================
-     الأقسام
-  ===================================== */
-
-  section: {
-    backgroundColor: "#ffffff",
+  card: {
+    backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
+    padding: 15,
+    marginBottom: 12,
+    elevation: 2,
   },
 
-  sectionTitle: {
+  title: {
     fontSize: 18,
-    fontWeight: "800",
-    color: "#1f2937",
-    textAlign: "right",
-    marginBottom: 14,
+    fontWeight: '900',
+    textAlign: 'right',
+    color: '#1d3b36',
+    marginBottom: 12,
   },
 
-  subSectionTitle: {
+  sectionSubtitle: {
     fontSize: 15,
-    fontWeight: "800",
-    color: "#374151",
-    textAlign: "right",
+    fontWeight: '900',
+    textAlign: 'right',
+    color: '#1d3b36',
     marginTop: 16,
-    marginBottom: 10,
-  },
-
-
-  /* =====================================
-     النصوص
-  ===================================== */
-
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#374151",
-    textAlign: "right",
-    marginTop: 10,
     marginBottom: 7,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e4e9e7',
+    paddingBottom: 7,
   },
 
-  smallText: {
-    fontSize: 12,
-    color: "#6b7280",
-    textAlign: "right",
-    lineHeight: 20,
-    marginBottom: 8,
+  label: {
+    textAlign: 'right',
+    fontWeight: '800',
+    marginTop: 9,
+    marginBottom: 6,
+    color: '#26332f',
   },
 
-  emptyText: {
-    fontSize: 13,
-    color: "#9ca3af",
-    textAlign: "center",
-    paddingVertical: 12,
-  },
-
-  infoText: {
-    fontSize: 13,
-    color: "#374151",
-    textAlign: "right",
-    lineHeight: 20,
-  },
-
-
-  /* =====================================
-     الحقول
-  ===================================== */
-
-  input: {
-    width: "100%",
-    minHeight: 46,
+  value: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: '#ccd6d2',
     borderRadius: 10,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: "#111827",
-    fontSize: 14,
-    textAlign: "right",
-    marginBottom: 8,
+    padding: 12,
+    alignItems: 'flex-end',
+    backgroundColor: '#fafcfb',
   },
 
-  numberInput: {
-    width: 90,
-    height: 42,
+  valueText: {
+    textAlign: 'right',
+    color: '#26332f',
+    fontWeight: '600',
+  },
+
+  desc: {
+    textAlign: 'right',
+    color: '#555',
+    lineHeight: 22,
+    marginBottom: 3,
+  },
+
+  note: {
+    fontSize: 11,
+    color: '#777',
+    textAlign: 'right',
+    marginTop: 10,
+    lineHeight: 18,
+  },
+
+  successText: {
+    color: '#16734b',
+    textAlign: 'right',
+    marginTop: 8,
+    fontWeight: '800',
+  },
+
+  switchRow: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginVertical: 7,
+    minHeight: 42,
+  },
+
+  switchText: {
+    flex: 1,
+    textAlign: 'right',
+    color: '#26332f',
+    fontWeight: '600',
+  },
+
+  btn: {
+    marginTop: 12,
+    backgroundColor: '#1d3b36',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+
+  btnText: {
+    color: '#fff',
+    fontWeight: '900',
+  },
+
+  btn2: {
+    marginTop: 10,
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 9,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 10,
-    color: "#111827",
-    fontSize: 14,
-    textAlign: "center",
+    borderColor: '#1d3b36',
+    padding: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: '#fff',
   },
 
-  numberRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginVertical: 5,
+  btn2Text: {
+    color: '#1d3b36',
+    fontWeight: '900',
   },
 
+  btnDanger: {
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#b33a3a',
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
 
-  /* =====================================
-     الخيارات
-  ===================================== */
+  btnDangerText: {
+    color: '#b33a3a',
+    fontWeight: '800',
+  },
 
   chips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "flex-end",
-    marginBottom: 8,
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
   },
 
   chip: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    backgroundColor: "#f9fafb",
-    paddingHorizontal: 13,
+    borderColor: '#ccd6d2',
+    paddingHorizontal: 15,
     paddingVertical: 9,
-    borderRadius: 20,
-    marginLeft: 6,
-    marginBottom: 7,
+    borderRadius: 999,
+    backgroundColor: '#fff',
   },
 
   chipOn: {
-    backgroundColor: "#1d3b36",
-    borderColor: "#1d3b36",
+    backgroundColor: '#1d3b36',
+    borderColor: '#1d3b36',
   },
 
   chipText: {
-    color: "#4b5563",
-    fontSize: 13,
-    fontWeight: "600",
+    color: '#26332f',
+    fontWeight: '600',
   },
 
   chipOnText: {
-    color: "#ffffff",
-    fontSize: 13,
-    fontWeight: "700",
+    color: '#fff',
+    fontWeight: '800',
   },
-
-
-  /* =====================================
-     Switch
-  ===================================== */
-
-  switchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f1f2",
-  },
-
-  switchLabel: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-    textAlign: "right",
-    marginRight: 12,
-  },
-
-
-  /* =====================================
-     الثيمات
-  ===================================== */
 
   themeGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "flex-end",
-    marginBottom: 8,
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 9,
   },
 
-  themeCard: {
-    width: "30%",
-    minWidth: 90,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 11,
-    marginLeft: 7,
-    marginBottom: 8,
+  themeItem: {
+    width: '31%',
+    minHeight: 78,
     borderWidth: 1,
-    borderColor: "#e5e7eb",
+    borderColor: '#d9e0dd',
     borderRadius: 12,
-    backgroundColor: "#fafafa",
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
   },
 
-  themeCardActive: {
-    borderColor: "#1d3b36",
-    backgroundColor: "#eef5f2",
+  themeItemActive: {
+    borderColor: '#1d3b36',
+    borderWidth: 2,
+    backgroundColor: '#f1f6f4',
   },
 
   themeCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 27,
+    height: 27,
+    borderRadius: 50,
     marginBottom: 6,
   },
 
-  themeName: {
-    fontSize: 12,
-    color: "#4b5563",
-    fontWeight: "600",
+  themeText: {
+    fontSize: 11,
+    color: '#555',
+    textAlign: 'center',
   },
 
-  themeNameActive: {
-    fontSize: 12,
-    color: "#1d3b36",
-    fontWeight: "800",
+  themeTextActive: {
+    color: '#1d3b36',
+    fontWeight: '900',
   },
 
-
-  /* =====================================
-     الشعار
-  ===================================== */
-
-  logoPreview: {
-    width: 90,
-    height: 90,
-    alignSelf: "center",
-    marginTop: 12,
-    marginBottom: 8,
-    borderRadius: 12,
-    backgroundColor: "#f3f4f6",
+  colorRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 10,
   },
 
-
-  /* =====================================
-     أزرار عامة
-  ===================================== */
-
-  primaryButton: {
-    width: "100%",
-    minHeight: 48,
-    backgroundColor: "#1d3b36",
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    marginTop: 9,
-  },
-
-  primaryButtonText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-
-  secondaryButton: {
-    width: "100%",
-    minHeight: 46,
-    backgroundColor: "#f0f4f2",
-    borderWidth: 1,
-    borderColor: "#cbd8d3",
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    marginTop: 9,
-  },
-
-  secondaryButtonText: {
-    color: "#1d3b36",
-    fontSize: 14,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-
-  dangerButton: {
-    width: "100%",
-    minHeight: 46,
-    backgroundColor: "#fff1f2",
-    borderWidth: 1,
-    borderColor: "#fecdd3",
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    marginTop: 9,
-  },
-
-  dangerText: {
-    color: "#be123c",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-
-  resetButton: {
-    width: "100%",
-    minHeight: 46,
-    backgroundColor: "#fef3c7",
-    borderWidth: 1,
-    borderColor: "#f59e0b",
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 14,
-  },
-
-  resetButtonText: {
-    color: "#92400e",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-
-  finalSaveButton: {
-    width: "100%",
-    minHeight: 52,
-    backgroundColor: "#1d3b36",
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 4,
-  },
-
-  finalSaveText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "800",
-  },
-
-
-  /* =====================================
-     الأسعار
-  ===================================== */
-
-  addRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-  },
-
-  addInput: {
+  colorInput: {
     flex: 1,
-    marginRight: 6,
-    marginBottom: 0,
-  },
-
-  priceInput: {
-    width: 80,
-    marginRight: 6,
-    marginBottom: 0,
-  },
-
-  addButton: {
-    width: 46,
-    height: 46,
+    borderWidth: 1,
+    borderColor: '#ccd6d2',
     borderRadius: 10,
-    backgroundColor: "#1d3b36",
-    alignItems: "center",
-    justifyContent: "center",
+    padding: 11,
+    textAlign: 'left',
+    backgroundColor: '#fff',
   },
 
-  addButtonText: {
-    color: "#ffffff",
-    fontSize: 25,
-    fontWeight: "500",
-    lineHeight: 28,
+  colorPreview: {
+    width: 43,
+    height: 43,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ccd6d2',
+  },
+
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccd6d2',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    marginTop: 8,
+    backgroundColor: '#fff',
+  },
+
+  inlineInputs: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+  },
+
+  halfInput: {
+    flex: 1,
+  },
+
+  numberRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 6,
+  },
+
+  numberLabel: {
+    flex: 1,
+    textAlign: 'right',
+    color: '#26332f',
+    fontWeight: '600',
+  },
+
+  numberInput: {
+    width: 90,
+    borderWidth: 1,
+    borderColor: '#ccd6d2',
+    borderRadius: 9,
+    padding: 9,
+    textAlign: 'center',
+    backgroundColor: '#fff',
+  },
+
+  listBox: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#e0e6e3',
+    borderRadius: 10,
+    overflow: 'hidden',
   },
 
   listRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 11,
-    paddingHorizontal: 10,
-    marginTop: 7,
-    backgroundColor: "#f9fafb",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-  },
-
-  listRowText: {
-    flex: 1,
-    alignItems: "flex-end",
-    paddingRight: 8,
-  },
-
-  listTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#1f2937",
-    textAlign: "right",
-  },
-
-  listValue: {
-    fontSize: 13,
-    color: "#6b7280",
-    marginTop: 3,
-    textAlign: "right",
-  },
-
-  deleteSmall: {
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    backgroundColor: "#fee2e2",
-    borderRadius: 8,
-  },
-
-  deleteSmallText: {
-    color: "#b91c1c",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-
-  /* =====================================
-     الحدود الحرجة
-  ===================================== */
-
-  addRangeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-  },
-
-  rangeTestInput: {
-    flex: 1,
-    minHeight: 46,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 10,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 9,
-    color: "#111827",
-    fontSize: 13,
-    textAlign: "right",
-    marginRight: 5,
-  },
-
-  rangeNumberInput: {
-    width: 58,
-    height: 46,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 10,
-    backgroundColor: "#ffffff",
-    paddingHorizontal: 5,
-    color: "#111827",
-    fontSize: 13,
-    textAlign: "center",
-    marginRight: 5,
-  },
-
-
-  /* =====================================
-     Drive
-  ===================================== */
-
-  driveBox: {
-    backgroundColor: "#f8fafc",
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    borderRadius: 11,
-    padding: 12,
-    marginBottom: 4,
-  },
-
-  driveStatusText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#374151",
-    textAlign: "right",
-  },
-
-  loadingText: {
-    marginTop: 7,
-    fontSize: 12,
-    color: "#1d3b36",
-    textAlign: "right",
-  },
-
-
-  /* =====================================
-     المعلومات والحالة
-  ===================================== */
-
-  infoBox: {
-    backgroundColor: "#f0f7f4",
-    borderWidth: 1,
-    borderColor: "#d4e5df",
-    borderRadius: 10,
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 11,
-    marginTop: 9,
-  },
-
-  statusRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f1f2",
+    borderBottomColor: '#edf0ef',
   },
 
-  statusLabel: {
-    fontSize: 14,
-    color: "#6b7280",
-    textAlign: "right",
+  listText: {
+    flex: 1,
+    textAlign: 'right',
+    color: '#26332f',
+    marginRight: 10,
   },
 
-  statusValue: {
-    fontSize: 14,
-    color: "#1d3b36",
-    fontWeight: "800",
-    textAlign: "right",
+  deleteText: {
+    color: '#b33a3a',
+    fontWeight: '900',
   },
 
-  bottomSpace: {
-    height: 30,
+  accountBox: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#e0e6e3',
+    borderRadius: 12,
+    padding: 12,
   },
 
+  accountIcon: {
+    fontSize: 26,
+  },
 
-  /* =====================================
-     النوافذ
-  ===================================== */
+  accountName: {
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'right',
+    color: '#1d3b36',
+  },
 
-  modalOverlay: {
-    position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    alignItems: "center",
-    justifyContent: "center",
+  driveMeta: {
+    textAlign: 'right',
+    marginTop: 10,
+    color: '#52605b',
+    lineHeight: 22,
+  },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 20,
   },
 
-  modalBox: {
-    width: "100%",
-    maxWidth: 450,
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
+  dialog: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
     padding: 18,
+    width: '100%',
+    maxHeight: '90%',
   },
 
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#1f2937",
-    textAlign: "right",
-    marginBottom: 14,
+  dialogTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    textAlign: 'right',
+    marginBottom: 10,
+    color: '#1d3b36',
   },
 
-  modalMessage: {
-    fontSize: 14,
-    color: "#4b5563",
-    textAlign: "right",
-    lineHeight: 22,
-    marginBottom: 14,
+  cancelButton: {
+    padding: 13,
+    alignItems: 'center',
   },
-
-  modalInput: {
-    width: "100%",
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    color: "#111827",
-    fontSize: 14,
-    textAlign: "right",
-    marginBottom: 15,
-  },
-
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-  },
-
-  modalCancel: {
-    paddingHorizontal: 16,
-    paddingVertical: 11,
-    borderRadius: 9,
-    backgroundColor: "#f3f4f6",
-    marginLeft: 8,
-  },
-
-  modalCancelText: {
-    color: "#4b5563",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-
-  modalConfirm: {
-    paddingHorizontal: 18,
-    paddingVertical: 11,
-    borderRadius: 9,
-    backgroundColor: "#1d3b36",
-  },
-
-  modalConfirmText: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "800",
-  },
-
-});
+}); 
