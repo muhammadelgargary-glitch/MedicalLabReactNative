@@ -1,68 +1,82 @@
-export const PALETTE = {
-  // Light Mode Colors (Matching Old HTML/CSS Palette)
-  light: {
-    primary: '#0ea5e9',
-    primaryDark: '#0284c7',
-    primaryLight: '#e0f2fe',
-    background: '#f8fafc',
-    card: '#ffffff',
-    cardBorder: '#e2e8f0',
-    textPrimary: '#0f172a',
-    textSecondary: '#475569',
-    textMuted: '#94a3b8',
-    danger: '#ef4444',
-    dangerBg: '#fef2f2',
-    warning: '#f59e0b',
-    warningBg: '#fffbeb',
-    success: '#10b981',
-    successBg: '#ecfdf5',
-    accent: '#6366f1',
-    divider: '#f1f5f9',
-    inputBg: '#ffffff',
-    inputBorder: '#cbd5e1',
-    headerBg: '#0f172a',
-    headerText: '#ffffff',
+export type SectionKey = 'Blood'|'Chem'|'Urine'|'Serology'|'Stool'|'Preg';
+
+export type FieldDef = { key: string; label: string; normal: string };
+
+export const TEST_SECTIONS: Record<SectionKey, {
+  key: SectionKey; dataKey: string; label: string; icon: string; fields: FieldDef[];
+}> = {
+  Blood: {
+    key:'Blood', dataKey:'blood', label:'دم', icon:'🩸',
+    fields:[
+      {key:'hb',label:'Hb',normal:'12 - 17 g/dl'},
+      {key:'pcv',label:'PCV',normal:'36 - 50 %'},
+      {key:'wbc',label:'WBC',normal:'4,000 - 11,000 /µl'},
+      {key:'esr',label:'ESR',normal:'0 - 20 mm/hr'},
+      {key:'abo',label:'ABO GROUP',normal:'—'},
+      {key:'plt',label:'PLT',normal:'150,000 - 450,000 /µl'}
+    ]
   },
-  // Dark Mode Colors
-  dark: {
-    primary: '#38bdf8',
-    primaryDark: '#0284c7',
-    primaryLight: '#075985',
-    background: '#0f172a',
-    card: '#1e293b',
-    cardBorder: '#334155',
-    textPrimary: '#f8fafc',
-    textSecondary: '#cbd5e1',
-    textMuted: '#64748b',
-    danger: '#f87171',
-    dangerBg: '#450a0a',
-    warning: '#fbbf24',
-    warningBg: '#451a03',
-    success: '#34d399',
-    successBg: '#064e3b',
-    accent: '#818cf8',
-    divider: '#334155',
-    inputBg: '#0f172a',
-    inputBorder: '#475569',
-    headerBg: '#1e293b',
-    headerText: '#f8fafc',
+  Chem: {
+    key:'Chem', dataKey:'chem', label:'كيمياء', icon:'🧪',
+    fields:[
+      {key:'fbs',label:'FBS',normal:'70 - 110 mg/dl'},
+      {key:'rbs',label:'RBS',normal:'70 - 140 mg/dl'},
+      {key:'urea',label:'Urea',normal:'15 - 45 mg/dl'},
+      {key:'creat',label:'Creatinine',normal:'0.6 - 1.3 mg/dl'},
+      {key:'uric',label:'Uric Acid',normal:'3.5 - 7.2 mg/dl'},
+      {key:'chol',label:'Cholesterol',normal:'< 200 mg/dl'},
+      {key:'trig',label:'Triglycerides',normal:'< 150 mg/dl'}
+    ]
+  },
+  Urine: {
+    key:'Urine', dataKey:'urine', label:'بول', icon:'💧',
+    fields:[
+      {key:'color',label:'Color',normal:'Yellow'},
+      {key:'appearance',label:'Appearance',normal:'Clear'},
+      {key:'ph',label:'pH',normal:'4.5 - 8.0'},
+      {key:'protein',label:'Protein',normal:'Negative'},
+      {key:'glucose',label:'Glucose',normal:'Negative'},
+      {key:'rbc',label:'RBC /HPF',normal:'0 - 2 /HPF'},
+      {key:'pus',label:'Pus Cells',normal:'0 - 5 /HPF'},
+      {key:'epithelial',label:'Epithelial',normal:'Few'},
+      {key:'crystals',label:'Crystals',normal:'Nill'}
+    ]
+  },
+  Serology: {
+    key:'Serology', dataKey:'serology', label:'مصليات', icon:'🧬',
+    fields:[
+      {key:'crp',label:'CRP',normal:'Negative (< 6 mg/L)'},
+      {key:'rf',label:'RF',normal:'Negative (< 14 IU/ml)'},
+      {key:'aso',label:'ASO',normal:'Negative (< 200 IU/ml)'},
+      {key:'hpylori',label:'H. pylori',normal:'Negative'},
+      {key:'widal',label:'Widal',normal:'Titer < 1:80'}
+    ]
+  },
+  Stool: {
+    key:'Stool', dataKey:'stool', label:'براز', icon:'💩',
+    fields:[
+      {key:'color',label:'Color',normal:'Brown'},
+      {key:'consistency',label:'Consistency',normal:'Formed'},
+      {key:'mucus',label:'Mucus',normal:'Nill'},
+      {key:'ova',label:'Ova / Parasites',normal:'Nill'}
+    ]
+  },
+  Preg: {
+    key:'Preg', dataKey:'preg', label:'حمل / هرمونات', icon:'🤰',
+    fields:[
+      {key:'preg',label:'Pregnancy Test',normal:'Negative'},
+      {key:'tsh',label:'TSH',normal:'0.4 - 4.0 mIU/L'}
+    ]
   }
 };
 
-export const SHADOWS = {
-  sm: {
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  md: {
-    shadowColor: '#0f172a',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 4,
-  },
+export const SECTION_KEYS = Object.keys(TEST_SECTIONS) as SectionKey[];
+
+export const emptySectionData = () => {
+  const out:any = {};
+  SECTION_KEYS.forEach(k => {
+    out[TEST_SECTIONS[k].dataKey] = {};
+    out[`include${k}`] = false;
+  });
+  return out;
 };
- 
