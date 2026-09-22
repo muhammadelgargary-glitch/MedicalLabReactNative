@@ -4,202 +4,1474 @@ import * as Print from 'expo-print';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as XLSX from 'xlsx';
+
 import {TEST_SECTIONS, SECTION_KEYS} from '../utils/constants';
 import {todayISO, displayDate} from '../utils/helpers';
 
-const ensureShare=async(uri:string,mime?:string)=>{
-  if(await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri,{mimeType:mime});
+/* =========================================================
+   Helpers
+========================================================= */
+
+const ensureShare = async (uri: string, mime?: string) => {
+  try {
+    const available = await Sharing.isAvailableAsync();
+
+    if (available) {
+      await Sharing.shareAsync(uri, {
+        mimeType: mime,
+      });
+    }
+  } catch (error) {
+    console.log('Sharing error:', error);
+  }
 };
+
+const esc = (value: any): string => {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
+const getPrintSettings = (
+  settings: any = {},
+  options: any = {},
+) => {
+  const saved = settings?.printSettings || {};
+
+  return {
+    paper:
+      options.paper ??
+      saved.paper ??
+      'A4',
+
+    orientation:
+      options.orientation ??
+      saved.orientation ??
+      'portrait',
+
+    showNormal:
+      options.showNormal ??
+      (saved.showNormal !== false),
+
+    logoUri:
+      options.logoUri ??
+      settings?.logo ??
+      '',
+
+    labCenter:
+      options.labCenter ??
+      settings?.labCenter ??
+      settings?.centerName ??
+      '',
+
+    directorate:
+      options.directorate ??
+      settings?.directorate ??
+      settings?.healthDirectorate ??
+      '',
+  };
+};
+
+const getPageCss = (
+  paper: string,
+  orientation: string,
+) => {
+  const safePaper =
+    paper === 'Letter'
+      ? 'Letter'
+      : 'A4';
+
+  const safeOrientation =
+    orientation === 'landscape'
+      ? 'landscape'
+      : 'portrait';
+
+  return `
+    @page {
+      size: ${safePaper} ${safeOrientation};
+      margin: 12mm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      direction: rtl;
+      font-family: Arial, Tahoma, sans-serif;
+      color: #111;
+      background: #fff;
+    }
+
+    body {
+      font-size: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      border: 1px solid #777;
+      padding: 7px 6px;
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    th {
+      background: #eeeeee;
+      font-weight: bold;
+    }
+
+    .no-border,
+    .no-border td,
+    .no-border th {
+      border: none !important;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+  `;
+};
+
+/* =========================================================
+   Backup
+========================================================= */
 
 export type BackupPayload = {
-  app:'lab-app';
-  version:number;
-  exportedAt:string;
-  patients:any[];
-  settings:any;
-  auditLog:any[];
+  app: 'lab-app';
+  version: number;
+  exportedAt: string;
+  patients: any[];
+  settings: any;
+  auditLog: any[];
 };
 
-export async function exportBackup(data:any){
-  const payload:BackupPayload={
-    app:'lab-app',
-    version:4,
-    exportedAt:new Date().toISOString(),
-    patients:data.patients||[],
-    settings:data.settings||{},
-    auditLog:data.auditLog||[]
-  };
-  const name=`lab_backup_${todayISO()}.json`;
-  const uri=FileSystem.cacheDirectory+name;
-  await FileSystem.writeAsStringAsync(uri,JSON.stringify(payload,null,2),{});
-  await ensureShare(uri,'application/json');
+export const exportBackup = async (
+  data: BackupPayload,
+) => {
+  const fileName = `lab_backup_${todayISO()}.json`;
+
+  const uri =
+    `${FileSystem.cacheDirectory}${fileName}`;
+
+  await FileSystem.writeAsStringAsync(
+    uri,
+    JSON.stringify(data, null, 2),
+    {
+      encoding: FileSystem.EncodingType.UTF8,
+    },
+  );
+
+  await ensureShare(
+    uri,
+    'application/json',
+  );
+
   return uri;
-}
+};
 
-export async function importBackup(){
-  const picked=await DocumentPicker.getDocumentAsync({
-    type:'application/json',
-    copyToCacheDirectory:true,
-    multiple:false
-  });
-  if(picked.canceled) return null;
-  const asset=picked.assets?.[0];
-  if(!asset?.uri) return null;
+export const importBackup = async () => {
+  const result =
+    await DocumentPicker.getDocumentAsync({
+      type: 'application/json',
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
 
-  const raw=await FileSystem.readAsStringAsync(asset.uri);
-  const data=JSON.parse(raw);
-  if(!data || data.app!=='lab-app' || !Array.isArray(data.patients)){
-    throw new Error('ملف النسخة الاحتياطية غير صالح أو ليس ملف مختبر.');
+  if (result.canceled) {
+    return null;
   }
+
+  const asset = result.assets?.[0];
+
+  if (!asset?.uri) {
+    throw new Error(
+      'لم يتم اختيار ملف النسخة الاحتياطية.',
+    );
+  }
+
+  const content =
+    await FileSystem.readAsStringAsync(
+      asset.uri,
+      {
+        encoding: FileSystem.EncodingType.UTF8,
+      },
+    );
+
+  let parsed: any;
+
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error(
+      'ملف النسخة الاحتياطية غير صالح.',
+    );
+  }
+
+  if (
+    parsed?.app !== 'lab-app' ||
+    !Array.isArray(parsed?.patients)
+  ) {
+    throw new Error(
+      'هذا الملف ليس نسخة احتياطية صحيحة للمختبر.',
+    );
+  }
+
   return {
-    patients:data.patients,
-    settings:data.settings||{},
-    auditLog:Array.isArray(data.auditLog)?data.auditLog:[],
-    version:data.version||1,
-    exportedAt:data.exportedAt||null
+    patients: parsed.patients,
+    settings: parsed.settings ?? {},
+    auditLog: Array.isArray(parsed.auditLog)
+      ? parsed.auditLog
+      : [],
+    version: parsed.version ?? 1,
+    exportedAt: parsed.exportedAt ?? '',
   };
-}
+};
 
-export async function mergeOrRestoreBackup(mode:'restore'|'merge', data:any){
-  if(mode==='restore'){
-    await AsyncStorage.multiSet([
-      ['lab_patients_db',JSON.stringify(data.patients||[])],
-      ['lab_settings_db',JSON.stringify(data.settings||{})],
-      ['lab_audit_log',JSON.stringify(data.auditLog||[])]
-    ]);
-  }else{
-    const [p,s,a]=await Promise.all([
-      AsyncStorage.getItem('lab_patients_db'),
-      AsyncStorage.getItem('lab_settings_db'),
-      AsyncStorage.getItem('lab_audit_log')
-    ]);
-    const currentPatients=p?JSON.parse(p):[];
-    const currentSettings=s?JSON.parse(s):{};
-    const currentAudit=a?JSON.parse(a):[];
-    const map=new Map(currentPatients.map((x:any)=>[x.id,x]));
-    (data.patients||[]).forEach((x:any)=>map.set(x.id,x));
-    await AsyncStorage.multiSet([
-      ['lab_patients_db',JSON.stringify([...map.values()])],
-      ['lab_settings_db',JSON.stringify({...currentSettings,...(data.settings||{})})],
-      ['lab_audit_log',JSON.stringify([...(data.auditLog||[]),...currentAudit].slice(0,500))]
-    ]);
+/* =========================================================
+   Restore / Merge
+========================================================= */
+
+export const mergeOrRestoreBackup = async (
+  mode: 'restore' | 'merge',
+  data: {
+    patients: any[];
+    settings?: any;
+    auditLog?: any[];
+  },
+) => {
+  const PATIENTS_KEY = 'lab_patients_db';
+  const SETTINGS_KEY = 'lab_settings_db';
+  const AUDIT_KEY = 'lab_audit_log';
+
+  if (mode === 'restore') {
+    await AsyncStorage.setItem(
+      PATIENTS_KEY,
+      JSON.stringify(data.patients ?? []),
+    );
+
+    await AsyncStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify(data.settings ?? {}),
+    );
+
+    await AsyncStorage.setItem(
+      AUDIT_KEY,
+      JSON.stringify(data.auditLog ?? []),
+    );
+
+    return {
+      patients: data.patients ?? [],
+      settings: data.settings ?? {},
+      auditLog: data.auditLog ?? [],
+    };
   }
-}
 
-const esc=(v:any)=>String(v??'')
-  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-  .replace(/"/g,'&quot;');
+  const currentPatientsRaw =
+    await AsyncStorage.getItem(
+      PATIENTS_KEY,
+    );
 
-export async function exportPatientPdf(patient:any,settings:any,options:any={}){
-  const center=esc(settings.center||'مختبري');
-  const directorate=esc(settings.directorate||'');
-  let rows='';
-  SECTION_KEYS.forEach(k=>{
-    if(!patient[`include${k}`]) return;
-    const sec=TEST_SECTIONS[k], d=patient[sec.dataKey]||{};
-    sec.fields.forEach(f=>{
-      const v=d[f.key];
-      if(String(v??'').trim()!==''){
-        rows+=`<tr><td>${esc(sec.label)}</td><td>${esc(f.label)}</td><td>${esc(v)}</td><td>${esc(f.normal)}</td></tr>`;
+  const currentSettingsRaw =
+    await AsyncStorage.getItem(
+      SETTINGS_KEY,
+    );
+
+  const currentAuditRaw =
+    await AsyncStorage.getItem(
+      AUDIT_KEY,
+    );
+
+  const currentPatients =
+    currentPatientsRaw
+      ? JSON.parse(currentPatientsRaw)
+      : [];
+
+  const currentSettings =
+    currentSettingsRaw
+      ? JSON.parse(currentSettingsRaw)
+      : {};
+
+  const currentAudit =
+    currentAuditRaw
+      ? JSON.parse(currentAuditRaw)
+      : [];
+
+  const patientsMap = new Map();
+
+  [
+    ...currentPatients,
+    ...(data.patients ?? []),
+  ].forEach((patient: any) => {
+    const id =
+      patient?.id ??
+      `${patient?.seq ?? ''}-${patient?.date ?? ''}-${patient?.name ?? ''}`;
+
+    patientsMap.set(id, patient);
+  });
+
+  const mergedPatients =
+    Array.from(patientsMap.values());
+
+  const mergedSettings = {
+    ...currentSettings,
+    ...(data.settings ?? {}),
+  };
+
+  const mergedAudit = [
+    ...currentAudit,
+    ...(data.auditLog ?? []),
+  ];
+
+  await AsyncStorage.setItem(
+    PATIENTS_KEY,
+    JSON.stringify(mergedPatients),
+  );
+
+  await AsyncStorage.setItem(
+    SETTINGS_KEY,
+    JSON.stringify(mergedSettings),
+  );
+
+  await AsyncStorage.setItem(
+    AUDIT_KEY,
+    JSON.stringify(mergedAudit),
+  );
+
+  return {
+    patients: mergedPatients,
+    settings: mergedSettings,
+    auditLog: mergedAudit,
+  };
+};
+
+/* =========================================================
+   Patient Report HTML
+========================================================= */
+
+const buildPatientReportHtml = (
+  patient: any,
+  settings: any = {},
+  options: any = {},
+) => {
+  const printSettings =
+    getPrintSettings(settings, options);
+
+  const {
+    paper,
+    orientation,
+    showNormal,
+    logoUri,
+    labCenter,
+    directorate,
+  } = printSettings;
+
+  const sections: any[] = [];
+
+  for (const sectionKey of SECTION_KEYS) {
+    const section =
+      TEST_SECTIONS[sectionKey];
+
+    if (!section) continue;
+
+    const tests =
+      patient?.results?.[sectionKey] ??
+      patient?.sections?.[sectionKey] ??
+      patient?.tests?.[sectionKey];
+
+    if (!tests) continue;
+
+    let sectionRows = '';
+
+    const testList = Array.isArray(tests)
+      ? tests
+      : Object.entries(tests).map(
+          ([testKey, value]) => ({
+            testKey,
+            value,
+          }),
+        );
+
+    for (const item of testList) {
+      let testName = '';
+      let resultValue = '';
+      let normalValue = '';
+
+      if (
+        typeof item === 'object' &&
+        item !== null &&
+        'testKey' in item
+      ) {
+        testName =
+          section?.tests?.[item.testKey]?.name ??
+          item.testKey;
+
+        if (
+          typeof item.value === 'object' &&
+          item.value !== null
+        ) {
+          resultValue =
+            item.value.result ??
+            item.value.value ??
+            '';
+
+          normalValue =
+            item.value.normal ??
+            item.value.reference ??
+            '';
+        } else {
+          resultValue =
+            item.value ?? '';
+        }
+      } else {
+        testName =
+          item?.name ??
+          item?.test ??
+          '';
+
+        resultValue =
+          item?.result ??
+          item?.value ??
+          '';
+
+        normalValue =
+          item?.normal ??
+          item?.reference ??
+          '';
       }
+
+      if (
+        !testName &&
+        !resultValue &&
+        !normalValue
+      ) {
+        continue;
+      }
+
+      sectionRows += `
+        <tr>
+          <td>${esc(testName)}</td>
+          <td>${esc(resultValue)}</td>
+          ${
+            showNormal
+              ? `<td>${esc(normalValue)}</td>`
+              : ''
+          }
+        </tr>
+      `;
+    }
+
+    if (!sectionRows) continue;
+
+    sections.push(`
+      <div class="section">
+        <div class="section-title">
+          ${esc(section?.title ?? section?.name ?? sectionKey)}
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>الفحص</th>
+              <th>النتيجة</th>
+              ${
+                showNormal
+                  ? '<th>القيمة الطبيعية</th>'
+                  : ''
+              }
+            </tr>
+          </thead>
+
+          <tbody>
+            ${sectionRows}
+          </tbody>
+        </table>
+      </div>
+    `);
+  }
+
+  const notes =
+    patient?.notes ??
+    patient?.note ??
+    '';
+
+  const logoHtml = logoUri
+    ? `
+      <div class="logo-wrap">
+        <img
+          src="${esc(logoUri)}"
+          class="logo"
+        />
+      </div>
+    `
+    : '';
+
+  return `
+    <!DOCTYPE html>
+
+    <html lang="ar" dir="rtl">
+
+    <head>
+      <meta charset="UTF-8" />
+
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+      />
+
+      <style>
+
+        ${getPageCss(
+          paper,
+          orientation,
+        )}
+
+        .container {
+          width: 100%;
+        }
+
+        .header {
+          text-align: center;
+          margin-bottom: 14px;
+        }
+
+        .logo-wrap {
+          text-align: center;
+          margin-bottom: 5px;
+        }
+
+        .logo {
+          max-width: 90px;
+          max-height: 90px;
+          object-fit: contain;
+        }
+
+        .center-name {
+          font-size: 20px;
+          font-weight: bold;
+          margin-bottom: 5px;
+        }
+
+        .directorate {
+          font-size: 14px;
+          margin-bottom: 3px;
+        }
+
+        .report-title {
+          font-size: 18px;
+          font-weight: bold;
+          margin-top: 10px;
+          padding: 8px;
+          border-top: 2px solid #222;
+          border-bottom: 2px solid #222;
+        }
+
+        .patient-info {
+          margin-top: 12px;
+          margin-bottom: 15px;
+        }
+
+        .patient-info td {
+          width: 25%;
+        }
+
+        .label {
+          font-weight: bold;
+          background: #f3f3f3;
+        }
+
+        .section {
+          margin-top: 15px;
+          page-break-inside: avoid;
+        }
+
+        .section-title {
+          font-size: 15px;
+          font-weight: bold;
+          background: #e8e8e8;
+          border: 1px solid #777;
+          padding: 8px;
+          text-align: center;
+        }
+
+        .notes {
+          margin-top: 18px;
+          border: 1px solid #777;
+          padding: 10px;
+          min-height: 55px;
+        }
+
+        .notes-title {
+          font-weight: bold;
+          margin-bottom: 5px;
+        }
+
+        .signatures {
+          margin-top: 35px;
+        }
+
+        .signatures td {
+          width: 50%;
+          height: 60px;
+          vertical-align: bottom;
+        }
+
+        .footer {
+          margin-top: 20px;
+          text-align: center;
+          font-size: 10px;
+          color: #666;
+        }
+
+      </style>
+    </head>
+
+    <body>
+
+      <div class="container">
+
+        <div class="header">
+
+          ${logoHtml}
+
+          ${
+            labCenter
+              ? `<div class="center-name">
+                  ${esc(labCenter)}
+                 </div>`
+              : ''
+          }
+
+          ${
+            directorate
+              ? `<div class="directorate">
+                  ${esc(directorate)}
+                 </div>`
+              : ''
+          }
+
+          <div class="report-title">
+            تقرير نتائج الفحوصات المختبرية
+          </div>
+
+        </div>
+
+        <table class="patient-info">
+
+          <tr>
+            <td class="label">التسلسل</td>
+            <td>${esc(patient?.seq ?? patient?.dailySeq ?? '')}</td>
+
+            <td class="label">التاريخ</td>
+            <td>${esc(
+              patient?.date
+                ? displayDate(patient.date)
+                : '',
+            )}</td>
+          </tr>
+
+          <tr>
+            <td class="label">اسم المريض</td>
+            <td colspan="3">
+              ${esc(patient?.name ?? '')}
+            </td>
+          </tr>
+
+          <tr>
+            <td class="label">العمر</td>
+            <td>
+              ${esc(patient?.age ?? '')}
+            </td>
+
+            <td class="label">الجنس</td>
+            <td>
+              ${esc(patient?.gender ?? '')}
+            </td>
+          </tr>
+
+        </table>
+
+        ${sections.join('')}
+
+        ${
+          notes
+            ? `
+              <div class="notes">
+                <div class="notes-title">
+                  الملاحظات
+                </div>
+
+                <div>
+                  ${esc(notes)}
+                </div>
+              </div>
+            `
+            : ''
+        }
+
+        <table class="signatures no-border">
+
+          <tr>
+            <td>
+              اسم المختبر / الموظف
+              <br />
+              ______________________
+            </td>
+
+            <td>
+              توقيع المختبر
+              <br />
+              ______________________
+            </td>
+          </tr>
+
+        </table>
+
+        <div class="footer">
+          تم إصدار التقرير بتاريخ
+          ${esc(todayISO())}
+        </div>
+
+      </div>
+
+    </body>
+    </html>
+  `;
+};
+
+/* =========================================================
+   Patient PDF
+========================================================= */
+
+export const exportPatientPdf = async (
+  patient: any,
+  settings: any = {},
+  options: any = {},
+) => {
+  const html =
+    buildPatientReportHtml(
+      patient,
+      settings,
+      options,
+    );
+
+  const result =
+    await Print.printToFileAsync({
+      html,
     });
+
+  await ensureShare(
+    result.uri,
+    'application/pdf',
+  );
+
+  return result.uri;
+};
+
+/* =========================================================
+   Patient Print
+========================================================= */
+
+export const printPatient = async (
+  patient: any,
+  settings: any = {},
+  options: any = {},
+) => {
+  const html =
+    buildPatientReportHtml(
+      patient,
+      settings,
+      options,
+    );
+
+  await Print.printAsync({
+    html,
   });
+};
 
-  const orientation=options.orientation||settings.printSettings?.orientation||'portrait';
-  const paper=options.paper||settings.printSettings?.paper||'A4';
-  const showNormal=options.showNormal!==false;
-  const logo=options.logoUri||settings.logo||'';
+/* =========================================================
+   Excel Export
+========================================================= */
 
-  const html=`<!doctype html><html><head><meta charset="utf-8"><style>
-  @page{size:${paper} ${orientation};margin:12mm}
-  *{box-sizing:border-box}
-  body{font-family:Arial,sans-serif;direction:rtl;color:#202824;font-size:12px;margin:0}
-  .header{border-bottom:2px solid #1d3b36;padding-bottom:9px;margin-bottom:12px}
-  .logo{max-height:70px;max-width:120px;float:right;margin-left:12px}
-  h1{font-size:20px;margin:0 0 3px;text-align:center}.dir{text-align:center;color:#666}
-  .report-title{text-align:center;font-size:17px;font-weight:bold;margin-top:8px}
-  .info{display:grid;grid-template-columns:1fr 1fr;border:1px solid #999;margin:10px 0}
-  .info div{padding:7px;border-left:1px solid #ccc;border-bottom:1px solid #ccc}
-  table{width:100%;border-collapse:collapse;page-break-inside:auto}
-  thead{display:table-header-group} tr{page-break-inside:avoid;page-break-after:auto}
-  th,td{border:1px solid #999;padding:6px;text-align:center}
-  th{background:#1d3b36;color:#fff}.normal{color:#555}
-  .notes{border:1px solid #999;padding:8px;margin-top:12px;min-height:35px}
-  .sign{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:35px;text-align:center}
-  .footer{text-align:center;color:#777;margin-top:22px;font-size:10px}
-  </style></head><body>
-  <div class="header">${logo?`<img class="logo" src="${esc(logo)}"/>`:''}<h1>${center}</h1><div class="dir">${directorate}</div><div class="report-title">تقرير الفحوصات المخبرية</div></div>
-  <div class="info">
-    <div><b>اسم المريض:</b> ${esc(patient.name)}</div><div><b>رقم السجل:</b> ${esc(patient.seq)}</div>
-    <div><b>العمر:</b> ${esc(patient.age)}</div><div><b>الجنس:</b> ${esc(patient.gender)}</div>
-    <div><b>التاريخ:</b> ${esc(displayDate(patient.date))}</div><div><b>عدد النتائج:</b> ${rows?rows.split('<tr>').length-1:0}</div>
-  </div>
-  <table><thead><tr><th>القسم</th><th>الفحص</th><th>النتيجة</th>${showNormal?'<th>القيمة الطبيعية</th>':''}</tr></thead><tbody>
-  ${rows.replaceAll(/<td>(.*?)<\/td><td>(.*?)<\/td><td>(.*?)<\/td><td>(.*?)<\/td>/g,
-    showNormal?'<td>$1</td><td>$2</td><td><b>$3</b></td><td class="normal">$4</td>':'<td>$1</td><td>$2</td><td><b>$3</b></td>')}
-  </tbody></table>
-  ${patient.notes?`<div class="notes"><b>ملاحظات:</b> ${esc(patient.notes)}</div>`:''}
-  <div class="sign"><div>توقيع المختبر<br/><br/>________________</div><div>توقيع الطبيب<br/><br/>________________</div></div>
-  <div class="footer">تم إنشاء التقرير إلكترونياً — ${new Date().toLocaleString('ar-IQ')}</div>
-  </body></html>`;
+export const exportPatientsExcel = async (
+  patients: any[],
+) => {
+  const rows: any[] = [];
 
-  const {uri}=await Print.printToFileAsync({html,base64:false});
-  await ensureShare(uri,'application/pdf');
+  for (const patient of patients ?? []) {
+    for (const sectionKey of SECTION_KEYS) {
+      const section =
+        TEST_SECTIONS[sectionKey];
+
+      if (!section) continue;
+
+      const tests =
+        patient?.results?.[sectionKey] ??
+        patient?.sections?.[sectionKey] ??
+        patient?.tests?.[sectionKey];
+
+      if (!tests) continue;
+
+      const testList = Array.isArray(tests)
+        ? tests
+        : Object.entries(tests).map(
+            ([testKey, value]) => ({
+              testKey,
+              value,
+            }),
+          );
+
+      for (const item of testList) {
+        let testName = '';
+        let resultValue = '';
+        let normalValue = '';
+
+        if (
+          typeof item === 'object' &&
+          item !== null &&
+          'testKey' in item
+        ) {
+          testName =
+            section?.tests?.[item.testKey]?.name ??
+            item.testKey;
+
+          if (
+            typeof item.value === 'object' &&
+            item.value !== null
+          ) {
+            resultValue =
+              item.value.result ??
+              item.value.value ??
+              '';
+
+            normalValue =
+              item.value.normal ??
+              item.value.reference ??
+              '';
+          } else {
+            resultValue =
+              item.value ?? '';
+          }
+        } else {
+          testName =
+            item?.name ??
+            item?.test ??
+            '';
+
+          resultValue =
+            item?.result ??
+            item?.value ??
+            '';
+
+          normalValue =
+            item?.normal ??
+            item?.reference ??
+            '';
+        }
+
+        rows.push({
+          'رقم السجل':
+            patient?.seq ??
+            patient?.dailySeq ??
+            '',
+
+          'اسم المريض':
+            patient?.name ?? '',
+
+          'العمر':
+            patient?.age ?? '',
+
+          'الجنس':
+            patient?.gender ?? '',
+
+          'التاريخ':
+            patient?.date ?? '',
+
+          'القسم':
+            section?.title ??
+            section?.name ??
+            sectionKey,
+
+          'الفحص':
+            testName,
+
+          'النتيجة':
+            resultValue,
+
+          'القيمة الطبيعية':
+            normalValue,
+
+          'الملاحظات':
+            patient?.notes ??
+            patient?.note ??
+            '',
+        });
+      }
+    }
+  }
+
+  const worksheet =
+    XLSX.utils.json_to_sheet(rows);
+
+  const workbook =
+    XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    'المرضى والفحوصات',
+  );
+
+  const excelBase64 =
+    XLSX.write(workbook, {
+      type: 'base64',
+      bookType: 'xlsx',
+    });
+
+  const fileName =
+    `سجلات_المختبر_${todayISO()}.xlsx`;
+
+  const uri =
+    `${FileSystem.cacheDirectory}${fileName}`;
+
+  await FileSystem.writeAsStringAsync(
+    uri,
+    excelBase64,
+    {
+      encoding:
+        FileSystem.EncodingType.Base64,
+    },
+  );
+
+  await ensureShare(
+    uri,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  );
+
   return uri;
-}
+};
 
-export async function printPatient(patient:any,settings:any,options:any={}){
-  const center=esc(settings.center||'مختبري');
-  let body='';
-  SECTION_KEYS.forEach(k=>{
-    if(!patient[`include${k}`]) return;
-    const sec=TEST_SECTIONS[k], d=patient[sec.dataKey]||{};
-    body+=`<h3>${esc(sec.icon+' '+sec.label)}</h3><table><tr><th>الفحص</th><th>النتيجة</th><th>الطبيعي</th></tr>`;
-    sec.fields.forEach(f=>{
-      const v=d[f.key];
-      if(String(v??'').trim()) body+=`<tr><td>${esc(f.label)}</td><td>${esc(v)}</td><td>${esc(f.normal)}</td></tr>`;
+/* =========================================================
+   Statistics
+========================================================= */
+
+export const getStats = (
+  patients: any[],
+) => {
+  const list = patients ?? [];
+
+  const today = todayISO();
+
+  const total = list.length;
+
+  const todayCount =
+    list.filter(
+      patient =>
+        patient?.date === today,
+    ).length;
+
+  const males =
+    list.filter(
+      patient =>
+        patient?.gender === 'ذكر' ||
+        patient?.gender === 'male' ||
+        patient?.gender === 'Male',
+    ).length;
+
+  const females =
+    list.filter(
+      patient =>
+        patient?.gender === 'أنثى' ||
+        patient?.gender === 'female' ||
+        patient?.gender === 'Female',
+    ).length;
+
+  const sections: Record<
+    string,
+    {
+      count: number;
+      tests: Record<string, number>;
+    }
+  > = {};
+
+  for (const patient of list) {
+    for (const sectionKey of SECTION_KEYS) {
+      const section =
+        TEST_SECTIONS[sectionKey];
+
+      if (!section) continue;
+
+      const tests =
+        patient?.results?.[sectionKey] ??
+        patient?.sections?.[sectionKey] ??
+        patient?.tests?.[sectionKey];
+
+      if (!tests) continue;
+
+      if (!sections[sectionKey]) {
+        sections[sectionKey] = {
+          count: 0,
+          tests: {},
+        };
+      }
+
+      sections[sectionKey].count++;
+
+      const testList = Array.isArray(tests)
+        ? tests
+        : Object.entries(tests).map(
+            ([testKey, value]) => ({
+              testKey,
+              value,
+            }),
+          );
+
+      for (const item of testList) {
+        let testName = '';
+
+        if (
+          typeof item === 'object' &&
+          item !== null &&
+          'testKey' in item
+        ) {
+          testName =
+            section?.tests?.[item.testKey]?.name ??
+            item.testKey;
+        } else {
+          testName =
+            item?.name ??
+            item?.test ??
+            '';
+        }
+
+        if (!testName) continue;
+
+        sections[sectionKey].tests[testName] =
+          (sections[sectionKey].tests[testName] ?? 0) + 1;
+      }
+    }
+  }
+
+  return {
+    total,
+    today: todayCount,
+    males,
+    females,
+    sections,
+  };
+};
+
+/* =========================================================
+   Statistics PDF
+========================================================= */
+
+export const exportStatsPdf = async (
+  stats: any,
+  settings: any = {},
+  options: any = {},
+) => {
+  const printSettings =
+    getPrintSettings(settings, options);
+
+  const {
+    paper,
+    orientation,
+    logoUri,
+    labCenter,
+    directorate,
+  } = printSettings;
+
+  const sectionRows =
+    Object.entries(
+      stats?.sections ?? {},
+    )
+      .map(
+        ([sectionKey, sectionData]: any) => {
+          const section =
+            TEST_SECTIONS[sectionKey];
+
+          const testRows =
+            Object.entries(
+              sectionData?.tests ?? {},
+            )
+              .map(
+                ([testName, count]) => `
+                  <tr>
+                    <td>
+                      ${esc(
+                        section?.title ??
+                        section?.name ??
+                        sectionKey,
+                      )}
+                    </td>
+
+                    <td>
+                      ${esc(testName)}
+                    </td>
+
+                    <td>
+                      ${esc(count)}
+                    </td>
+                  </tr>
+                `,
+              )
+              .join('');
+
+          return testRows;
+        },
+      )
+      .join('');
+
+  const logoHtml = logoUri
+    ? `
+      <div class="logo-wrap">
+        <img
+          src="${esc(logoUri)}"
+          class="logo"
+        />
+      </div>
+    `
+    : '';
+
+  const html = `
+    <!DOCTYPE html>
+
+    <html lang="ar" dir="rtl">
+
+    <head>
+
+      <meta charset="UTF-8" />
+
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+      />
+
+      <style>
+
+        ${getPageCss(
+          paper,
+          orientation,
+        )}
+
+        .header {
+          text-align: center;
+          margin-bottom: 20px;
+        }
+
+        .logo-wrap {
+          text-align: center;
+        }
+
+        .logo {
+          max-width: 80px;
+          max-height: 80px;
+        }
+
+        .center {
+          font-size: 20px;
+          font-weight: bold;
+        }
+
+        .directorate {
+          margin-top: 4px;
+          font-size: 13px;
+        }
+
+        .title {
+          margin-top: 12px;
+          padding: 10px;
+          border-top: 2px solid #222;
+          border-bottom: 2px solid #222;
+          font-size: 18px;
+          font-weight: bold;
+        }
+
+        .summary {
+          margin-bottom: 20px;
+        }
+
+        .summary td {
+          width: 25%;
+        }
+
+        .summary .number {
+          font-size: 18px;
+          font-weight: bold;
+        }
+
+        .section-title {
+          margin-top: 18px;
+          margin-bottom: 5px;
+          font-size: 15px;
+          font-weight: bold;
+        }
+
+        .footer {
+          margin-top: 20px;
+          text-align: center;
+          font-size: 10px;
+          color: #666;
+        }
+
+      </style>
+
+    </head>
+
+    <body>
+
+      <div class="header">
+
+        ${logoHtml}
+
+        ${
+          labCenter
+            ? `<div class="center">
+                ${esc(labCenter)}
+               </div>`
+            : ''
+        }
+
+        ${
+          directorate
+            ? `<div class="directorate">
+                ${esc(directorate)}
+               </div>`
+            : ''
+        }
+
+        <div class="title">
+          إحصائيات المختبر
+        </div>
+
+      </div>
+
+      <table class="summary">
+
+        <tr>
+
+          <th>إجمالي المرضى</th>
+          <th>مرضى اليوم</th>
+          <th>الذكور</th>
+          <th>الإناث</th>
+
+        </tr>
+
+        <tr>
+
+          <td class="number">
+            ${esc(stats?.total ?? 0)}
+          </td>
+
+          <td class="number">
+            ${esc(stats?.today ?? 0)}
+          </td>
+
+          <td class="number">
+            ${esc(stats?.males ?? 0)}
+          </td>
+
+          <td class="number">
+            ${esc(stats?.females ?? 0)}
+          </td>
+
+        </tr>
+
+      </table>
+
+      <table>
+
+        <thead>
+
+          <tr>
+
+            <th>القسم</th>
+            <th>الفحص</th>
+            <th>عدد الفحوصات</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          ${sectionRows || `
+            <tr>
+              <td colspan="3">
+                لا توجد بيانات
+              </td>
+            </tr>
+          `}
+
+        </tbody>
+
+      </table>
+
+      <div class="footer">
+        تاريخ التقرير:
+        ${esc(todayISO())}
+      </div>
+
+    </body>
+
+    </html>
+  `;
+
+  const result =
+    await Print.printToFileAsync({
+      html,
     });
-    body+='</table>';
-  });
-  const html=`<html><head><meta charset="utf-8"><style>
-  @page{size:${options.paper||'A4'} ${options.orientation||'portrait'};margin:12mm}
-  body{font-family:Arial;direction:rtl}h1{text-align:center;color:#1d3b36}
-  .meta{border:1px solid #999;padding:9px;margin:10px 0}table{width:100%;border-collapse:collapse}
-  th,td{border:1px solid #999;padding:6px;text-align:center}th{background:#1d3b36;color:#fff}
-  </style></head><body><h1>${center}</h1><h2 style="text-align:center">تقرير الفحوصات</h2>
-  <div class="meta">المريض: <b>${esc(patient.name)}</b> — السجل: ${esc(patient.seq)} — التاريخ: ${esc(displayDate(patient.date))}</div>${body}</body></html>`;
-  return Print.printAsync({html});
-}
 
-export async function exportPatientsExcel(patients:any[]){
-  const rows:any[]=[['رقم السجل','اسم المريض','العمر','الجنس','التاريخ','الملاحظات','القسم','الفحص','النتيجة','القيمة الطبيعية']];
-  patients.forEach(p=>{
-    SECTION_KEYS.forEach(k=>{
-      if(!p[`include${k}`]) return;
-      const sec=TEST_SECTIONS[k], d=p[sec.dataKey]||{};
-      sec.fields.forEach(f=>{
-        if(String(d[f.key]??'').trim()!=='') rows.push([p.seq,p.name,p.age,p.gender,p.date,p.notes,sec.label,f.label,d[f.key],f.normal]);
-      });
-    });
-  });
-  const ws=XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols']=[{wch:12},{wch:28},{wch:8},{wch:10},{wch:14},{wch:30},{wch:18},{wch:25},{wch:25},{wch:25}];
-  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'المرضى والفحوصات');
-  const b=XLSX.write(wb,{type:'base64',bookType:'xlsx'});
-  const uri=FileSystem.cacheDirectory+`سجلات_المختبر_${todayISO()}.xlsx`;
-  await FileSystem.writeAsStringAsync(uri,b,{encoding:FileSystem.EncodingType.Base64});
-  await ensureShare(uri,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  return uri;
-}
+  await ensureShare(
+    result.uri,
+    'application/pdf',
+  );
 
-export function getStats(patients:any[]){
-  const today=todayISO();
-  const total=patients.length,todayCount=patients.filter(p=>p.date===today).length;
-  const males=patients.filter(p=>p.gender==='ذكر').length,females=patients.filter(p=>p.gender==='أنثى').length;
-  const sections=SECTION_KEYS.map(k=>{
-    const sec=TEST_SECTIONS[k];
-    const tests=sec.fields.map(f=>({name:f.label,count:patients.filter(p=>p[`include${k}`]&&String((p[sec.dataKey]||{})[f.key]??'').trim()!=='').length}));
-    return {key:k,name:sec.label,count:tests.reduce((a,b)=>a+b.count,0),tests};
+  return result.uri;
+};
+
+/* =========================================================
+   Print Statistics
+========================================================= */
+
+export const printStats = async (
+  stats: any,
+  settings: any = {},
+  options: any = {},
+) => {
+  const printSettings =
+    getPrintSettings(settings, options);
+
+  const {
+    paper,
+    orientation,
+  } = printSettings;
+
+  const sectionRows =
+    Object.entries(
+      stats?.sections ?? {},
+    )
+      .map(
+        ([sectionKey, sectionData]: any) => {
+          const section =
+            TEST_SECTIONS[sectionKey];
+
+          return Object.entries(
+            sectionData?.tests ?? {},
+          )
+            .map(
+              ([testName, count]) => `
+                <tr>
+                  <td>
+                    ${esc(
+                      section?.title ??
+                      section?.name ??
+                      sectionKey,
+                    )}
+                  </td>
+
+                  <td>
+                    ${esc(testName)}
+                  </td>
+
+                  <td>
+                    ${esc(count)}
+                  </td>
+                </tr>
+              `,
+            )
+            .join('');
+        },
+      )
+      .join('');
+
+  const html = `
+    <!DOCTYPE html>
+
+    <html lang="ar" dir="rtl">
+
+    <head>
+
+      <meta charset="UTF-8" />
+
+      <style>
+
+        ${getPageCss(
+          paper,
+          orientation,
+        )}
+
+        h1 {
+          text-align: center;
+          margin-bottom: 20px;
+        }
+
+        .summary {
+          margin-bottom: 20px;
+        }
+
+      </style>
+
+    </head>
+
+    <body>
+
+      <h1>
+        إحصائيات المختبر
+      </h1>
+
+      <table class="summary">
+
+        <tr>
+          <th>إجمالي المرضى</th>
+          <th>اليوم</th>
+          <th>الذكور</th>
+          <th>الإناث</th>
+        </tr>
+
+        <tr>
+          <td>${esc(stats?.total ?? 0)}</td>
+          <td>${esc(stats?.today ?? 0)}</td>
+          <td>${esc(stats?.males ?? 0)}</td>
+          <td>${esc(stats?.females ?? 0)}</td>
+        </tr>
+
+      </table>
+
+      <table>
+
+        <thead>
+
+          <tr>
+            <th>القسم</th>
+            <th>الفحص</th>
+            <th>العدد</th>
+          </tr>
+
+        </thead>
+
+        <tbody>
+          ${sectionRows}
+        </tbody>
+
+      </table>
+
+    </body>
+
+    </html>
+  `;
+
+  await Print.printAsync({
+    html,
   });
-  return {total,today:todayCount,males,females,sections};
-}
+};
