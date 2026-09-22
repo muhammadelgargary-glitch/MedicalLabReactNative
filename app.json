@@ -1,19 +1,28 @@
 {
   "expo": {
     "name": "سجل المختبر الطبي",
-    "slug": "medical-lab-react-native",
+    "slug": "medical-lab-app",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "android": {
-      "package": "com.medical.lab",
-      "adaptiveIcon": {
-        "backgroundColor": "#1d3b36"
-      }
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1d3b36"
     },
-    "plugins": [
-      "expo-print",
-      "expo-file-system"
-    ]
-  }
-}
+    "ios": {
+      "supportsTabletMode": true,
+      "bundleIdentifier": "com.medical.lab"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1d3b36"
+      },
+      "package": "com.medical.lab",
+      "versionCode": 1,
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "INTERNET",
