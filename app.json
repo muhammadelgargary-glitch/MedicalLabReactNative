@@ -16,7 +16,12 @@
     },
 
     "plugins": [
-      "@react-native-google-signin/google-signin",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.302676179340-4e6res67d3sbf7ftg1mr7fqi3i409kt4"
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -35,4 +40,4 @@
       }
     }
   }
-}
+} 
