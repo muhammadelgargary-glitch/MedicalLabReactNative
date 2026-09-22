@@ -13,8 +13,7 @@
     },
     "plugins": [
       "expo-print",
-      "expo-file-system",
-      "@react-native-google-signin/google-signin"
+      "expo-file-system"
     ]
   }
 }
