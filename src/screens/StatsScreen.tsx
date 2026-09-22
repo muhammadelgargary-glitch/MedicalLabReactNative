@@ -31,14 +31,10 @@ export default function StatsScreen() {
     return getStats(patients);
   }, [patients]);
 
-  const sections = useMemo(() => {
-    return Object.entries(
-      stats?.sections ?? {},
-    ).map(([key, value]: any) => ({
-      key,
-      ...value,
-    }));
-  }, [stats]);
+  /*
+   * getStats() يرجع sections كمصفوفة
+   */
+  const sections = stats?.sections ?? [];
 
   /* =====================================================
      PDF
@@ -107,9 +103,7 @@ export default function StatsScreen() {
     try {
       setBusy('excel');
 
-      await exportPatientsExcel(
-        patients,
-      );
+      await exportPatientsExcel(patients);
     } catch (error) {
       console.log('Statistics Excel error:', error);
 
@@ -132,9 +126,8 @@ export default function StatsScreen() {
         styles.root,
         dark && styles.rootDark,
       ]}
-      contentContainerStyle={
-        styles.content
-      }>
+      contentContainerStyle={styles.content}
+    >
 
       {/* العنوان */}
 
@@ -142,7 +135,8 @@ export default function StatsScreen() {
         style={[
           styles.h,
           dark && styles.textLight,
-        ]}>
+        ]}
+      >
         📊 التقرير الإحصائي الطبي
       </Text>
 
@@ -150,7 +144,8 @@ export default function StatsScreen() {
         style={[
           styles.subHeader,
           dark && styles.textMuted,
-        ]}>
+        ]}
+      >
         ملخص شامل لسجلات وفحوصات المختبر
       </Text>
 
@@ -190,19 +185,22 @@ export default function StatsScreen() {
         style={[
           styles.card,
           dark && styles.cardDark,
-        ]}>
+        ]}
+      >
 
         <Text
           style={[
             styles.title,
             dark && styles.textLight,
-          ]}>
+          ]}
+        >
           توزيع الفحوصات
         </Text>
 
         {sections.length === 0 ? (
 
           <View style={styles.empty}>
+
             <Text style={styles.emptyIcon}>
               📋
             </Text>
@@ -211,66 +209,78 @@ export default function StatsScreen() {
               style={[
                 styles.emptyText,
                 dark && styles.textMuted,
-              ]}>
+              ]}
+            >
               لا توجد بيانات فحوصات حتى الآن.
             </Text>
+
           </View>
 
         ) : (
 
           sections.map(section => {
 
-            const testEntries =
-              Object.entries(
-                section.tests ?? {},
-              )
-                .map(
-                  ([name, count]: any) => ({
-                    name,
-                    count: Number(count) || 0,
-                  }),
-                )
-                .filter(
-                  item => item.count > 0,
-                );
+            /*
+             * getStats الجديد يرجع tests كمصفوفة:
+             *
+             * [
+             *   {name:'Hb', count:5},
+             *   {name:'WBC', count:4}
+             * ]
+             */
+
+            const testEntries = (
+              section.tests ?? []
+            ).filter(
+              test => Number(test.count) > 0,
+            );
 
             return (
               <View
                 key={section.key}
                 style={[
                   styles.section,
-                  dark &&
-                    styles.sectionDark,
-                ]}>
+                  dark && styles.sectionDark,
+                ]}
+              >
 
                 {/* اسم القسم */}
 
-                <View style={styles.sectionHeader}>
+                <View
+                  style={styles.sectionHeader}
+                >
 
                   <Text
                     style={[
                       styles.sec,
-                      dark &&
-                        styles.textLight,
-                    ]}>
-                    {getSectionName(
-                      section.key,
-                    )}
+                      dark && styles.textLight,
+                    ]}
+                  >
+                    {section.name ||
+                      getSectionName(
+                        section.key,
+                      )}
                   </Text>
 
-                  <View style={styles.sectionCount}>
+                  <View
+                    style={
+                      styles.sectionCount
+                    }
+                  >
 
                     <Text
                       style={
                         styles.sectionCountNumber
-                      }>
+                      }
+                    >
                       {section.count || 0}
                     </Text>
 
                     <Text
                       style={
                         styles.sectionCountLabel
-                      }>
+                      }
+                    >
                       سجل
                     </Text>
 
@@ -287,45 +297,52 @@ export default function StatsScreen() {
                       styles.noTests,
                       dark &&
                         styles.textMuted,
-                    ]}>
+                    ]}
+                  >
                     لا توجد فحوصات مسجلة.
                   </Text>
 
                 ) : (
 
                   testEntries.map(test => (
+
                     <View
                       key={test.name}
                       style={[
                         styles.test,
                         dark &&
                           styles.testDark,
-                      ]}>
+                      ]}
+                    >
 
                       <Text
                         style={[
                           styles.testName,
                           dark &&
                             styles.textLight,
-                        ]}>
+                        ]}
+                      >
                         {test.name}
                       </Text>
 
                       <View
                         style={
                           styles.testBadge
-                        }>
+                        }
+                      >
 
                         <Text
                           style={
                             styles.testCount
-                          }>
+                          }
+                        >
                           {test.count}
                         </Text>
 
                       </View>
 
                     </View>
+
                   ))
 
                 )}
@@ -344,13 +361,15 @@ export default function StatsScreen() {
         style={[
           styles.actionsCard,
           dark && styles.cardDark,
-        ]}>
+        ]}
+      >
 
         <Text
           style={[
             styles.actionsTitle,
             dark && styles.textLight,
-          ]}>
+          ]}
+        >
           تصدير وطباعة التقرير
         </Text>
 
@@ -358,15 +377,17 @@ export default function StatsScreen() {
 
         <TouchableOpacity
           disabled={!!busy}
-          style={styles.pdfButton}
-          onPress={handlePdf}>
+          style={[
+            styles.pdfButton,
+            !!busy && styles.disabledButton,
+          ]}
+          onPress={handlePdf}
+        >
 
           <Text style={styles.buttonText}>
-
             {busy === 'pdf'
               ? '⏳ جاري إنشاء PDF...'
               : '📄 تصدير الإحصائيات PDF'}
-
           </Text>
 
         </TouchableOpacity>
@@ -378,19 +399,20 @@ export default function StatsScreen() {
           style={[
             styles.printButton,
             dark && styles.printButtonDark,
+            !!busy && styles.disabledButton,
           ]}
-          onPress={handlePrint}>
+          onPress={handlePrint}
+        >
 
           <Text
             style={[
               styles.printText,
               dark && styles.textLight,
-            ]}>
-
+            ]}
+          >
             {busy === 'print'
               ? '⏳ جاري فتح الطباعة...'
               : '🖨️ طباعة الإحصائيات'}
-
           </Text>
 
         </TouchableOpacity>
@@ -402,19 +424,20 @@ export default function StatsScreen() {
           style={[
             styles.excelButton,
             dark && styles.excelButtonDark,
+            !!busy && styles.disabledButton,
           ]}
-          onPress={handleExcel}>
+          onPress={handleExcel}
+        >
 
           <Text
             style={[
               styles.excelText,
               dark && styles.textLight,
-            ]}>
-
+            ]}
+          >
             {busy === 'excel'
               ? '⏳ جاري إنشاء Excel...'
               : '📗 تصدير السجلات إلى Excel'}
-
           </Text>
 
         </TouchableOpacity>
@@ -443,7 +466,8 @@ function Box({
       style={[
         styles.box,
         dark && styles.boxDark,
-      ]}>
+      ]}
+    >
 
       <Text style={styles.bn}>
         {n}
@@ -453,7 +477,8 @@ function Box({
         style={[
           styles.bt,
           dark && styles.textMuted,
-        ]}>
+        ]}
+      >
         {t}
       </Text>
 
@@ -465,13 +490,15 @@ function Box({
    اسم القسم
 ========================================================= */
 
-function getSectionName(
-  key: string,
-) {
-  const names: Record<
-    string,
-    string
-  > = {
+function getSectionName(key: string) {
+  const names: Record<string, string> = {
+    Blood: 'أمراض الدم',
+    Chem: 'الكيمياء',
+    Urine: 'فحص البول العام',
+    Serology: 'المصليات',
+    Stool: 'فحص البراز',
+    Preg: 'الحمل / الهرمونات',
+
     hematology: 'أمراض الدم',
     chemistry: 'الكيمياء',
     urine: 'فحص البول العام',
@@ -480,10 +507,7 @@ function getSectionName(
     biochemistry: 'الكيمياء',
   };
 
-  return (
-    names[key] ||
-    key
-  );
+  return names[key] || key;
 }
 
 /* =========================================================
@@ -764,4 +788,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-});
+  disabledButton: {
+    opacity: 0.6,
+  },
+
+}); 
