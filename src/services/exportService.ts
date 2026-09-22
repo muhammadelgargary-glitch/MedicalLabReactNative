@@ -17,7 +17,109 @@ import {
 } from '../utils/helpers';
 
 /* =========================================================
-   Helpers
+   Types
+========================================================= */
+
+type PrintOptions = {
+  paper?: 'A4' | 'A5' | 'Letter';
+  orientation?: 'portrait' | 'landscape';
+  layout?: 'auto' | '1' | '2' | '2stack' | '3' | '4';
+  gap?: number;
+
+  marginTop?: number;
+  marginRight?: number;
+  marginBottom?: number;
+  marginLeft?: number;
+
+  fontSize?: number;
+  tableFontSize?: number;
+  fontFamily?: string;
+
+  showLogo?: boolean;
+  logoPosition?: 'right' | 'left' | 'center';
+  logoSize?: number;
+
+  reportTitle?: string;
+
+  showCenter?: boolean;
+  showDirectorate?: boolean;
+  showDate?: boolean;
+  showSeq?: boolean;
+  showNotes?: boolean;
+  showFooter?: boolean;
+
+  footerText?: string;
+
+  showBorder?: boolean;
+  borderColor?: string;
+  showNormal?: boolean;
+
+  logoUri?: string;
+  labCenter?: string;
+  directorate?: string;
+};
+
+type StatsTest = {
+  name: string;
+  count: number;
+};
+
+type StatsSection = {
+  key: SectionKey;
+  name: string;
+  count: number;
+  tests: StatsTest[];
+};
+
+export type LabStats = {
+  total: number;
+  today: number;
+  males: number;
+  females: number;
+  sections: StatsSection[];
+};
+
+/* =========================================================
+   Default Print Settings
+========================================================= */
+
+const DEFAULT_PRINT_SETTINGS: PrintOptions = {
+  paper: 'A4',
+  orientation: 'portrait',
+  layout: 'auto',
+  gap: 4,
+
+  marginTop: 8,
+  marginRight: 8,
+  marginBottom: 8,
+  marginLeft: 8,
+
+  fontSize: 13,
+  tableFontSize: 11,
+  fontFamily: 'Tajawal, Arial, Tahoma, sans-serif',
+
+  showLogo: true,
+  logoPosition: 'right',
+  logoSize: 24,
+
+  reportTitle: 'تقرير الفحوصات المخبرية',
+
+  showCenter: true,
+  showDirectorate: true,
+  showDate: true,
+  showSeq: true,
+  showNotes: true,
+  showFooter: true,
+
+  footerText: 'مع تمنياتنا بالصحة والعافية',
+
+  showBorder: true,
+  borderColor: '#777777',
+  showNormal: true,
+};
+
+/* =========================================================
+   General Helpers
 ========================================================= */
 
 const ensureShare = async (
@@ -28,11 +130,13 @@ const ensureShare = async (
     const available =
       await Sharing.isAvailableAsync();
 
-    if (available) {
-      await Sharing.shareAsync(uri, {
-        mimeType: mime,
-      });
+    if (!available) {
+      return;
     }
+
+    await Sharing.shareAsync(uri, {
+      mimeType: mime,
+    });
   } catch (error) {
     console.log(
       'Sharing error:',
@@ -41,30 +145,32 @@ const ensureShare = async (
   }
 };
 
-const esc = (
-  value: any,
-): string => {
+const esc = (value: any): string => {
   return String(value ?? '')
-    .replace(
-      /&/g,
-      '&amp;',
-    )
-    .replace(
-      /</g,
-      '&lt;',
-    )
-    .replace(
-      />/g,
-      '&gt;',
-    )
-    .replace(
-      /"/g,
-      '&quot;',
-    )
-    .replace(
-      /'/g,
-      '&#039;',
-    );
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
+const hasValue = (value: any) => {
+  return (
+    value !== null &&
+    value !== undefined &&
+    String(value).trim() !== ''
+  );
+};
+
+const safeNumber = (
+  value: any,
+  fallback: number,
+) => {
+  const n = Number(value);
+
+  return Number.isFinite(n)
+    ? n
+    : fallback;
 };
 
 /* =========================================================
@@ -73,158 +179,141 @@ const esc = (
 
 const getPrintSettings = (
   settings: any = {},
-  options: any = {},
-) => {
+  options: PrintOptions = {},
+): Required<
+  Omit<
+    PrintOptions,
+    'logoUri' | 'labCenter' | 'directorate'
+  >
+> & {
+  logoUri: string;
+  labCenter: string;
+  directorate: string;
+} => {
   const saved =
     settings?.printSettings || {};
 
+  const merged: any = {
+    ...DEFAULT_PRINT_SETTINGS,
+    ...saved,
+    ...options,
+  };
+
   return {
     paper:
-      options.paper ??
-      saved.paper ??
-      'A4',
+      merged.paper === 'A5'
+        ? 'A5'
+        : merged.paper === 'Letter'
+        ? 'Letter'
+        : 'A4',
 
     orientation:
-      options.orientation ??
-      saved.orientation ??
-      'portrait',
+      merged.orientation === 'landscape'
+        ? 'landscape'
+        : 'portrait',
 
     layout:
-      options.layout ??
-      saved.layout ??
-      'auto',
+      ['auto', '1', '2', '2stack', '3', '4'].includes(
+        merged.layout,
+      )
+        ? merged.layout
+        : 'auto',
 
-    gap:
-      Number(
-        options.gap ??
-        saved.gap ??
-        4,
-      ),
+    gap: safeNumber(
+      merged.gap,
+      4,
+    ),
 
-    marginTop:
-      Number(
-        options.marginTop ??
-        saved.marginTop ??
-        8,
-      ),
+    marginTop: safeNumber(
+      merged.marginTop,
+      8,
+    ),
 
-    marginRight:
-      Number(
-        options.marginRight ??
-        saved.marginRight ??
-        8,
-      ),
+    marginRight: safeNumber(
+      merged.marginRight,
+      8,
+    ),
 
-    marginBottom:
-      Number(
-        options.marginBottom ??
-        saved.marginBottom ??
-        8,
-      ),
+    marginBottom: safeNumber(
+      merged.marginBottom,
+      8,
+    ),
 
-    marginLeft:
-      Number(
-        options.marginLeft ??
-        saved.marginLeft ??
-        8,
-      ),
+    marginLeft: safeNumber(
+      merged.marginLeft,
+      8,
+    ),
 
-    fontSize:
-      Number(
-        options.fontSize ??
-        saved.fontSize ??
-        13,
-      ),
+    fontSize: safeNumber(
+      merged.fontSize,
+      13,
+    ),
 
-    tableFontSize:
-      Number(
-        options.tableFontSize ??
-        saved.tableFontSize ??
-        11,
-      ),
+    tableFontSize: safeNumber(
+      merged.tableFontSize,
+      11,
+    ),
 
     fontFamily:
-      options.fontFamily ??
-      saved.fontFamily ??
-      'Arial, Tahoma, sans-serif',
+      merged.fontFamily ||
+      'Tajawal, Arial, Tahoma, sans-serif',
 
     showLogo:
-      options.showLogo ??
-      saved.showLogo ??
-      true,
+      merged.showLogo !== false,
 
     logoPosition:
-      options.logoPosition ??
-      saved.logoPosition ??
-      'right',
+      merged.logoPosition === 'left'
+        ? 'left'
+        : merged.logoPosition === 'center'
+        ? 'center'
+        : 'right',
 
-    logoSize:
-      Number(
-        options.logoSize ??
-        saved.logoSize ??
-        24,
-      ),
+    logoSize: safeNumber(
+      merged.logoSize,
+      24,
+    ),
 
     reportTitle:
-      options.reportTitle ??
-      saved.reportTitle ??
+      merged.reportTitle ||
       'تقرير الفحوصات المخبرية',
 
     showCenter:
-      options.showCenter ??
-      saved.showCenter ??
-      true,
+      merged.showCenter !== false,
 
     showDirectorate:
-      options.showDirectorate ??
-      saved.showDirectorate ??
-      true,
+      merged.showDirectorate !== false,
 
     showDate:
-      options.showDate ??
-      saved.showDate ??
-      true,
+      merged.showDate !== false,
 
     showSeq:
-      options.showSeq ??
-      saved.showSeq ??
-      true,
+      merged.showSeq !== false,
 
     showNotes:
-      options.showNotes ??
-      saved.showNotes ??
-      true,
+      merged.showNotes !== false,
 
     showFooter:
-      options.showFooter ??
-      saved.showFooter ??
-      true,
+      merged.showFooter !== false,
 
     footerText:
-      options.footerText ??
-      saved.footerText ??
+      merged.footerText ||
       'مع تمنياتنا بالصحة والعافية',
 
     showBorder:
-      options.showBorder ??
-      saved.showBorder ??
-      true,
+      merged.showBorder !== false,
 
     borderColor:
-      options.borderColor ??
-      saved.borderColor ??
+      merged.borderColor ||
       '#777777',
 
     showNormal:
-      options.showNormal ??
-      saved.showNormal ??
-      true,
+      merged.showNormal !== false,
 
     logoUri:
       options.logoUri ??
       settings?.logo ??
       '',
-    
+
     labCenter:
       options.labCenter ??
       settings?.center ??
@@ -234,7 +323,7 @@ const getPrintSettings = (
       options.directorate ??
       settings?.directorate ??
       '',
-  };
+  } as any;
 };
 
 /* =========================================================
@@ -242,29 +331,16 @@ const getPrintSettings = (
 ========================================================= */
 
 const getPageCss = (
-  printSettings: any,
+  printSettings: ReturnType<
+    typeof getPrintSettings
+  >,
 ) => {
-  const paper =
-    printSettings.paper === 'A5'
-      ? 'A5'
-      : printSettings.paper ===
-        'Letter'
-      ? 'Letter'
-      : 'A4';
-
-  const orientation =
-    printSettings.orientation ===
-    'landscape'
-      ? 'landscape'
-      : 'portrait';
-
   const borderColor =
     printSettings.borderColor ||
-    '#777';
+    '#777777';
 
   const border =
-    printSettings.showBorder !==
-    false
+    printSettings.showBorder
       ? `1px solid ${borderColor}`
       : 'none';
 
@@ -274,7 +350,7 @@ const getPageCss = (
 
   return `
     @page {
-      size: ${paper} ${orientation};
+      size: ${printSettings.paper} ${printSettings.orientation};
       margin:
         ${printSettings.marginTop}mm
         ${printSettings.marginRight}mm
@@ -291,13 +367,14 @@ const getPageCss = (
       margin: 0;
       padding: 0;
       direction: rtl;
-      font-family: ${fontFamily};
-      color: #111;
-      background: #fff;
+      background: #ffffff;
+      color: #111111;
+      font-family: ${esc(fontFamily)};
     }
 
     body {
       font-size: ${printSettings.fontSize}px;
+      line-height: 1.45;
     }
 
     table {
@@ -316,7 +393,7 @@ const getPageCss = (
 
     th {
       background: #eeeeee;
-      font-weight: bold;
+      font-weight: 900;
     }
 
     .no-border,
@@ -325,12 +402,14 @@ const getPageCss = (
       border: none !important;
     }
 
-    .page-break {
-      page-break-before: always;
-    }
-
     .avoid-break {
       page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    .page-break {
+      page-break-before: always;
+      break-before: page;
     }
   `;
 };
@@ -339,24 +418,6 @@ const getPageCss = (
    Patient Data Helpers
 ========================================================= */
 
-/**
- * الحصول على بيانات قسم محدد من المريض.
- *
- * البيانات الحقيقية في المشروع:
- *
- * patient.blood
- * patient.chem
- * patient.urine
- * patient.serology
- * patient.stool
- * patient.preg
- *
- * والقسم يكون فعالاً بواسطة:
- *
- * patient.includeBlood
- * patient.includeChem
- * ...
- */
 const getSectionData = (
   patient: any,
   sectionKey: SectionKey,
@@ -371,7 +432,7 @@ const getSectionData = (
   const included =
     patient?.[
       `include${sectionKey}`
-    ];
+    ] === true;
 
   if (!included) {
     return null;
@@ -384,9 +445,6 @@ const getSectionData = (
   );
 };
 
-/**
- * الحصول على الفحوصات التي تحتوي فعلياً على نتيجة.
- */
 const getSectionResults = (
   patient: any,
   sectionKey: SectionKey,
@@ -414,27 +472,22 @@ const getSectionResults = (
       label: field.label,
       normal: field.normal,
       value:
-        data?.[field.key] ??
-        '',
+        data?.[field.key] ?? '',
     }))
     .filter(item =>
-      String(
-        item.value ?? '',
-      ).trim(),
+      hasValue(item.value),
     );
 };
 
-/**
- * عدد الفحوصات المسجلة فعلياً في القسم.
- */
-const getSectionResultCount = (
+const getIncludedSections = (
   patient: any,
-  sectionKey: SectionKey,
 ) => {
-  return getSectionResults(
-    patient,
-    sectionKey,
-  ).length;
+  return SECTION_KEYS.filter(
+    key =>
+      patient?.[
+        `include${key}`
+      ] === true,
+  );
 };
 
 /* =========================================================
@@ -469,8 +522,7 @@ export const exportBackup =
       ),
       {
         encoding:
-          FileSystem.EncodingType
-            .UTF8,
+          FileSystem.EncodingType.UTF8,
       },
     );
 
@@ -487,10 +539,8 @@ export const importBackup =
     const result =
       await DocumentPicker.getDocumentAsync(
         {
-          type:
-            'application/json',
-          copyToCacheDirectory:
-            true,
+          type: 'application/json',
+          copyToCacheDirectory: true,
           multiple: false,
         },
       );
@@ -513,8 +563,7 @@ export const importBackup =
         asset.uri,
         {
           encoding:
-            FileSystem.EncodingType
-              .UTF8,
+            FileSystem.EncodingType.UTF8,
         },
       );
 
@@ -530,8 +579,7 @@ export const importBackup =
     }
 
     if (
-      parsed?.app !==
-        'lab-app' ||
+      parsed?.app !== 'lab-app' ||
       !Array.isArray(
         parsed?.patients,
       )
@@ -587,10 +635,7 @@ export const mergeOrRestoreBackup =
     const AUDIT_KEY =
       'lab_audit_log';
 
-    if (
-      mode ===
-      'restore'
-    ) {
+    if (mode === 'restore') {
       await AsyncStorage.setItem(
         PATIENTS_KEY,
         JSON.stringify(
@@ -688,9 +733,7 @@ export const mergeOrRestoreBackup =
       ...currentPatients,
       ...(data.patients ?? []),
     ].forEach(
-      (
-        patient: any,
-      ) => {
+      (patient: any) => {
         const id =
           patient?.id ??
           `${patient?.seq ?? ''}-${patient?.date ?? ''}-${patient?.name ?? ''}`;
@@ -712,21 +755,16 @@ export const mergeOrRestoreBackup =
       ...(data.settings ?? {}),
       printSettings: {
         ...(currentSettings
-          ?.printSettings ??
-          {}),
+          ?.printSettings ?? {}),
         ...(data.settings
-          ?.printSettings ??
-          {}),
+          ?.printSettings ?? {}),
       },
     };
 
     const mergedAudit = [
       ...currentAudit,
       ...(data.auditLog ?? []),
-    ].slice(
-      0,
-      500,
-    );
+    ].slice(0, 500);
 
     await AsyncStorage.setItem(
       PATIENTS_KEY,
@@ -769,7 +807,7 @@ const buildPatientReportHtml =
   (
     patient: any,
     settings: any = {},
-    options: any = {},
+    options: PrintOptions = {},
   ) => {
     const ps =
       getPrintSettings(
@@ -777,14 +815,7 @@ const buildPatientReportHtml =
         options,
       );
 
-    const {
-      logoUri,
-      labCenter,
-      directorate,
-    } = ps;
-
-    let sectionsHtml =
-      '';
+    let sectionsHtml = '';
 
     for (
       const sectionKey of
@@ -801,71 +832,57 @@ const buildPatientReportHtml =
           sectionKey,
         );
 
-      if (
-        !results.length
-      ) {
+      if (!results.length) {
         continue;
       }
 
-      let rows = '';
-
-      for (
-        const result of
+      const rows =
         results
-      ) {
-        rows += `
-          <tr>
-            <td>
-              ${esc(
-                result.label,
-              )}
-            </td>
+          .map(
+            result => `
+              <tr>
+                <td>
+                  ${esc(
+                    result.label,
+                  )}
+                </td>
 
-            <td class="result">
-              ${esc(
-                result.value,
-              )}
-            </td>
+                <td class="result">
+                  ${esc(
+                    result.value,
+                  )}
+                </td>
 
-            ${
-              ps.showNormal
-                ? `
-                  <td>
-                    ${esc(
-                      result.normal,
-                    )}
-                  </td>
-                `
-                : ''
-            }
-          </tr>
-        `;
-      }
+                ${
+                  ps.showNormal
+                    ? `
+                      <td>
+                        ${esc(
+                          result.normal,
+                        )}
+                      </td>
+                    `
+                    : ''
+                }
+              </tr>
+            `,
+          )
+          .join('');
 
       sectionsHtml += `
         <div class="section avoid-break">
 
           <div class="section-title">
-            ${esc(
-              section.icon,
-            )}
-            ${esc(
-              section.label,
-            )}
+            ${esc(section.icon)}
+            ${esc(section.label)}
           </div>
 
           <table>
 
             <thead>
               <tr>
-
-                <th>
-                  الفحص
-                </th>
-
-                <th>
-                  النتيجة
-                </th>
+                <th>الفحص</th>
+                <th>النتيجة</th>
 
                 ${
                   ps.showNormal
@@ -876,7 +893,6 @@ const buildPatientReportHtml =
                     `
                     : ''
                 }
-
               </tr>
             </thead>
 
@@ -892,19 +908,17 @@ const buildPatientReportHtml =
 
     const logoHtml =
       ps.showLogo &&
-      logoUri
+      hasValue(ps.logoUri)
         ? `
           <div
             class="logo-wrap"
-            style="
-              text-align:${esc(
-                ps.logoPosition,
-              )};
-            "
+            style="text-align:${esc(
+              ps.logoPosition,
+            )};"
           >
             <img
               src="${esc(
-                logoUri,
+                ps.logoUri,
               )}"
               class="logo"
               style="
@@ -912,103 +926,100 @@ const buildPatientReportHtml =
                   10,
                   ps.logoSize,
                 )}mm;
-                height:auto;
               "
             />
           </div>
         `
         : '';
 
-    const seq =
-      patient?.seq ??
-      '';
+    const infoRows = `
+      <tr>
 
-    const date =
-      patient?.date
-        ? displayDate(
-            patient.date,
-          )
-        : '';
+        ${
+          ps.showSeq
+            ? `
+              <td class="label">
+                التسلسل
+              </td>
+
+              <td>
+                ${esc(
+                  patient?.seq ?? '',
+                )}
+              </td>
+            `
+            : ''
+        }
+
+        ${
+          ps.showDate
+            ? `
+              <td class="label">
+                التاريخ
+              </td>
+
+              <td>
+                ${esc(
+                  patient?.date
+                    ? displayDate(
+                        patient.date,
+                      )
+                    : '',
+                )}
+              </td>
+            `
+            : ''
+        }
+
+      </tr>
+
+      <tr>
+
+        <td class="label">
+          اسم المريض
+        </td>
+
+        <td colspan="3">
+          ${esc(
+            patient?.name ?? '',
+          )}
+        </td>
+
+      </tr>
+
+      <tr>
+
+        <td class="label">
+          العمر
+        </td>
+
+        <td>
+          ${esc(
+            patient?.age ?? '',
+          )}
+        </td>
+
+        <td class="label">
+          الجنس
+        </td>
+
+        <td>
+          ${esc(
+            patient?.gender ?? '',
+          )}
+        </td>
+
+      </tr>
+    `;
 
     const notes =
-      patient?.notes ??
-      '';
-
-    const infoRows =
-      `
-        <tr>
-
-          ${
-            ps.showSeq
-              ? `
-                <td class="label">
-                  التسلسل
-                </td>
-
-                <td>
-                  ${esc(seq)}
-                </td>
-              `
-              : ''
-          }
-
-          ${
-            ps.showDate
-              ? `
-                <td class="label">
-                  التاريخ
-                </td>
-
-                <td>
-                  ${esc(date)}
-                </td>
-              `
-              : ''
-          }
-
-        </tr>
-
-        <tr>
-
-          <td class="label">
-            اسم المريض
-          </td>
-
-          <td colspan="3">
-            ${esc(
-              patient?.name ??
-                '',
-            )}
-          </td>
-
-        </tr>
-
-        <tr>
-
-          <td class="label">
-            العمر
-          </td>
-
-          <td>
-            ${esc(
-              patient?.age ??
-                '',
-            )}
-          </td>
-
-          <td class="label">
-            الجنس
-          </td>
-
-          <td>
-            ${esc(
-              patient?.gender ??
-                '',
-            )}
-          </td>
-
-        </tr>
-      `;
+      hasValue(
+        patient?.notes,
+      )
+        ? String(
+            patient.notes,
+          )
+        : '';
 
     return `
       <!DOCTYPE html>
@@ -1048,6 +1059,7 @@ const buildPatientReportHtml =
 
           .logo {
             max-height: 35mm;
+            height: auto;
             object-fit: contain;
           }
 
@@ -1059,7 +1071,7 @@ const buildPatientReportHtml =
 
           .directorate {
             font-size: 14px;
-            margin-bottom: 4px;
+            margin-bottom: 5px;
           }
 
           .report-title {
@@ -1076,7 +1088,7 @@ const buildPatientReportHtml =
             margin-bottom: 15px;
           }
 
-          .label {
+          .patient-info .label {
             font-weight: 900;
             background: #f3f3f3;
           }
@@ -1110,7 +1122,7 @@ const buildPatientReportHtml =
                 : 'none'
             };
             padding: 10px;
-            min-height: 50px;
+            min-height: 45px;
           }
 
           .notes-title {
@@ -1149,11 +1161,11 @@ const buildPatientReportHtml =
 
             ${
               ps.showCenter &&
-              labCenter
+              hasValue(ps.labCenter)
                 ? `
                   <div class="center-name">
                     ${esc(
-                      labCenter,
+                      ps.labCenter,
                     )}
                   </div>
                 `
@@ -1162,11 +1174,11 @@ const buildPatientReportHtml =
 
             ${
               ps.showDirectorate &&
-              directorate
+              hasValue(ps.directorate)
                 ? `
                   <div class="directorate">
                     ${esc(
-                      directorate,
+                      ps.directorate,
                     )}
                   </div>
                 `
@@ -1221,7 +1233,6 @@ const buildPatientReportHtml =
           <table
             class="signatures no-border"
           >
-
             <tr>
 
               <td>
@@ -1237,7 +1248,6 @@ const buildPatientReportHtml =
               </td>
 
             </tr>
-
           </table>
 
           ${
@@ -1268,7 +1278,7 @@ export const exportPatientPdf =
   async (
     patient: any,
     settings: any = {},
-    options: any = {},
+    options: PrintOptions = {},
   ) => {
     const html =
       buildPatientReportHtml(
@@ -1298,7 +1308,7 @@ export const printPatient =
   async (
     patient: any,
     settings: any = {},
-    options: any = {},
+    options: PrintOptions = {},
   ) => {
     const html =
       buildPatientReportHtml(
@@ -1320,33 +1330,29 @@ export const exportPatientsExcel =
   async (
     patients: any[],
   ) => {
+    const list =
+      patients ?? [];
 
     const patientRows =
-      (patients ?? []).map(
+      list.map(
         patient => ({
           'رقم السجل':
-            patient?.seq ??
-            '',
+            patient?.seq ?? '',
 
           'اسم المريض':
-            patient?.name ??
-            '',
+            patient?.name ?? '',
 
           'العمر':
-            patient?.age ??
-            '',
+            patient?.age ?? '',
 
           'الجنس':
-            patient?.gender ??
-            '',
+            patient?.gender ?? '',
 
           'التاريخ':
-            patient?.date ??
-            '',
+            patient?.date ?? '',
 
-          'الملاحظات':
-            patient?.notes ??
-            '',
+          'ملاحظات':
+            patient?.notes ?? '',
         }),
       );
 
@@ -1354,15 +1360,12 @@ export const exportPatientsExcel =
       [];
 
     for (
-      const patient of
-      patients ?? []
+      const patient of list
     ) {
-
       for (
         const sectionKey of
         SECTION_KEYS
       ) {
-
         const section =
           TEST_SECTIONS[
             sectionKey
@@ -1375,30 +1378,23 @@ export const exportPatientsExcel =
           );
 
         for (
-          const result of
-          results
+          const result of results
         ) {
-
           resultRows.push({
             'رقم السجل':
-              patient?.seq ??
-              '',
+              patient?.seq ?? '',
 
             'اسم المريض':
-              patient?.name ??
-              '',
+              patient?.name ?? '',
 
             'العمر':
-              patient?.age ??
-              '',
+              patient?.age ?? '',
 
             'الجنس':
-              patient?.gender ??
-              '',
+              patient?.gender ?? '',
 
             'التاريخ':
-              patient?.date ??
-              '',
+              patient?.date ?? '',
 
             'القسم':
               section.label,
@@ -1412,99 +1408,49 @@ export const exportPatientsExcel =
             'القيمة الطبيعية':
               result.normal,
 
-            'الملاحظات':
-              patient?.notes ??
-              '',
+            'ملاحظات':
+              patient?.notes ?? '',
           });
-
         }
       }
     }
 
+    const stats =
+      getStats(list);
+
+    const statsRows =
+      stats.sections.map(
+        section => ({
+          'القسم':
+            section.name,
+
+          'عدد المرضى':
+            section.count,
+
+          'عدد النتائج':
+            section.tests.reduce(
+              (
+                total,
+                test,
+              ) =>
+                total +
+                test.count,
+              0,
+            ),
+        }),
+      );
+
     const workbook =
       XLSX.utils.book_new();
-
-    /* ---------------------------------------------
-       Sheet 1: المرضى
-    --------------------------------------------- */
 
     const patientsSheet =
       XLSX.utils.json_to_sheet(
         patientRows,
       );
 
-    XLSX.utils.book_append_sheet(
-      workbook,
-      patientsSheet,
-      'المرضى',
-    );
-
-    /* ---------------------------------------------
-       Sheet 2: النتائج
-    --------------------------------------------- */
-
     const resultsSheet =
       XLSX.utils.json_to_sheet(
         resultRows,
-      );
-
-    XLSX.utils.book_append_sheet(
-      workbook,
-      resultsSheet,
-      'النتائج',
-    );
-
-    /* ---------------------------------------------
-       Sheet 3: ملخص الأقسام
-    --------------------------------------------- */
-
-    const stats =
-      getStats(
-        patients,
-      );
-
-    const statsRows =
-      Object.entries(
-        stats.sections ?? {},
-      ).map(
-        (
-          [
-            sectionKey,
-            data,
-          ]: any,
-        ) => {
-
-          const section =
-            TEST_SECTIONS[
-              sectionKey
-            ];
-
-          return {
-            'القسم':
-              section?.label ??
-              sectionKey,
-
-            'عدد المرضى':
-              data?.count ??
-              0,
-
-            'عدد النتائج':
-              Object.values(
-                data?.tests ??
-                  {},
-              ).reduce(
-                (
-                  total: number,
-                  value: any,
-                ) =>
-                  total +
-                  Number(
-                    value || 0,
-                  ),
-                0,
-              ),
-          };
-        },
       );
 
     const statsSheet =
@@ -1514,20 +1460,30 @@ export const exportPatientsExcel =
 
     XLSX.utils.book_append_sheet(
       workbook,
+      patientsSheet,
+      'المرضى',
+    );
+
+    XLSX.utils.book_append_sheet(
+      workbook,
+      resultsSheet,
+      'النتائج',
+    );
+
+    XLSX.utils.book_append_sheet(
+      workbook,
       statsSheet,
       'الإحصائيات',
     );
 
-    /* ---------------------------------------------
-       عرض الأعمدة
-    --------------------------------------------- */
+    const sheets = [
+      patientsSheet,
+      resultsSheet,
+      statsSheet,
+    ];
 
     for (
-      const sheet of [
-        patientsSheet,
-        resultsSheet,
-        statsSheet,
-      ]
+      const sheet of sheets
     ) {
       const range =
         XLSX.utils.decode_range(
@@ -1539,31 +1495,29 @@ export const exportPatientsExcel =
         [];
 
       for (
-        let c =
-          range.s.c;
+        let c = range.s.c;
         c <= range.e.c;
         c++
       ) {
         let max = 12;
 
         for (
-          let r =
-            range.s.r;
+          let r = range.s.r;
           r <= range.e.r;
           r++
         ) {
           const cell =
             sheet[
-              XLSX.utils.encode_cell(
-                {
-                  r,
-                  c,
-                },
-              )
+              XLSX.utils.encode_cell({
+                r,
+                c,
+              })
             ];
 
           if (
-            cell?.v !=
+            cell?.v !==
+            undefined &&
+            cell?.v !==
             null
           ) {
             max =
@@ -1571,8 +1525,7 @@ export const exportPatientsExcel =
                 max,
                 String(
                   cell.v,
-                ).length +
-                  2,
+                ).length + 2,
               );
           }
         }
@@ -1609,8 +1562,7 @@ export const exportPatientsExcel =
       excelBase64,
       {
         encoding:
-          FileSystem.EncodingType
-            .Base64,
+          FileSystem.EncodingType.Base64,
       },
     );
 
@@ -1626,141 +1578,132 @@ export const exportPatientsExcel =
    Statistics
 ========================================================= */
 
-export const getStats =
-  (
-    patients: any[],
-  ) => {
+export const getStats = (
+  patients: any[],
+): LabStats => {
+  const list =
+    patients ?? [];
 
-    const list =
-      patients ?? [];
+  const today =
+    todayISO();
 
-    const today =
-      todayISO();
+  const total =
+    list.length;
 
-    const total =
-      list.length;
+  const todayCount =
+    list.filter(
+      patient =>
+        patient?.date ===
+        today,
+    ).length;
 
-    const todayCount =
+  const males =
+    list.filter(
+      patient => {
+        const gender =
+          String(
+            patient?.gender ??
+              '',
+          )
+            .trim()
+            .toLowerCase();
+
+        return (
+          gender === 'ذكر' ||
+          gender === 'male'
+        );
+      },
+    ).length;
+
+  const females =
+    list.filter(
+      patient => {
+        const gender =
+          String(
+            patient?.gender ??
+              '',
+          )
+            .trim()
+            .toLowerCase();
+
+        return (
+          gender === 'أنثى' ||
+          gender === 'female'
+        );
+      },
+    ).length;
+
+  const sections: StatsSection[] =
+    [];
+
+  for (
+    const sectionKey of
+    SECTION_KEYS
+  ) {
+    const section =
+      TEST_SECTIONS[
+        sectionKey
+      ];
+
+    const patientsWithSection =
       list.filter(
         patient =>
-          patient?.date ===
-          today,
-      ).length;
+          patient?.[
+            `include${sectionKey}`
+          ] === true,
+      );
 
-    const males =
-      list.filter(
-        patient =>
-          patient?.gender ===
-            'ذكر' ||
-          patient?.gender ===
-            'male' ||
-          patient?.gender ===
-            'Male',
-      ).length;
-
-    const females =
-      list.filter(
-        patient =>
-          patient?.gender ===
-            'أنثى' ||
-          patient?.gender ===
-            'female' ||
-          patient?.gender ===
-            'Female',
-      ).length;
-
-    const sections:
-      Record<
-        string,
-        {
-          count: number;
-          tests: Record<
-            string,
-            number
-          >;
-        }
-      > = {};
-
-    for (
-      const patient of
-      list
+    if (
+      patientsWithSection.length ===
+      0
     ) {
-
-      for (
-        const sectionKey of
-        SECTION_KEYS
-      ) {
-
-        const results =
-          getSectionResults(
-            patient,
-            sectionKey,
-          );
-
-        /*
-         * لا نضيف القسم إذا لم توجد
-         * أي نتيجة فعلية.
-         */
-
-        if (
-          results.length ===
-          0
-        ) {
-          continue;
-        }
-
-        if (
-          !sections[
-            sectionKey
-          ]
-        ) {
-          sections[
-            sectionKey
-          ] = {
-            count: 0,
-            tests: {},
-          };
-        }
-
-        /*
-         * count = عدد المرضى الذين
-         * لديهم نتائج في هذا القسم.
-         */
-
-        sections[
-          sectionKey
-        ].count++;
-
-        for (
-          const result of
-          results
-        ) {
-
-          const name =
-            result.label;
-
-          sections[
-            sectionKey
-          ].tests[name] =
-            (
-              sections[
-                sectionKey
-              ].tests[name] ??
-              0
-            ) + 1;
-
-        }
-      }
+      continue;
     }
 
-    return {
-      total,
-      today: todayCount,
-      males,
-      females,
-      sections,
-    };
+    const tests: StatsTest[] =
+      section.fields
+        .map(field => {
+          const count =
+            patientsWithSection.filter(
+              patient => {
+                const value =
+                  patient?.[
+                    section.dataKey
+                  ]?.[field.key];
+
+                return hasValue(
+                  value,
+                );
+              },
+            ).length;
+
+          return {
+            name: field.label,
+            count,
+          };
+        })
+        .filter(
+          test =>
+            test.count > 0,
+        );
+
+    sections.push({
+      key: sectionKey,
+      name: section.label,
+      count:
+        patientsWithSection.length,
+      tests,
+    });
+  }
+
+  return {
+    total,
+    today: todayCount,
+    males,
+    females,
+    sections,
   };
+};
 
 /* =========================================================
    Statistics PDF HTML
@@ -1768,99 +1711,25 @@ export const getStats =
 
 const buildStatsHtml =
   (
-    stats: any,
+    stats: LabStats,
     settings: any = {},
-    options: any = {},
+    options: PrintOptions = {},
   ) => {
-
     const ps =
       getPrintSettings(
         settings,
         options,
       );
 
-    let sectionRows =
-      '';
-
-    for (
-      const sectionKey of
-      Object.keys(
-        stats?.sections ??
-          {},
-      )
-    ) {
-
-      const data =
-        stats.sections[
-          sectionKey
-        ];
-
-      const section =
-        TEST_SECTIONS[
-          sectionKey as SectionKey
-        ];
-
-      if (!section) {
-        continue;
-      }
-
-      const testEntries =
-        Object.entries(
-          data?.tests ??
-            {},
-        );
-
-      if (
-        testEntries.length ===
-        0
-      ) {
-        continue;
-      }
-
-      for (
-        const [
-          testName,
-          count,
-        ] of testEntries
-      ) {
-
-        sectionRows += `
-          <tr>
-
-            <td>
-              ${esc(
-                section.label,
-              )}
-            </td>
-
-            <td>
-              ${esc(
-                testName,
-              )}
-            </td>
-
-            <td>
-              ${esc(
-                count,
-              )}
-            </td>
-
-          </tr>
-        `;
-      }
-    }
-
     const logoHtml =
       ps.showLogo &&
-      ps.logoUri
+      hasValue(ps.logoUri)
         ? `
           <div
             class="logo-wrap"
-            style="
-              text-align:${esc(
-                ps.logoPosition,
-              )};
-            "
+            style="text-align:${esc(
+              ps.logoPosition,
+            )};"
           >
             <img
               src="${esc(
@@ -1878,6 +1747,42 @@ const buildStatsHtml =
         `
         : '';
 
+    let sectionRows = '';
+
+    for (
+      const section of
+      stats.sections
+    ) {
+      for (
+        const test of
+        section.tests
+      ) {
+        sectionRows += `
+          <tr>
+
+            <td>
+              ${esc(
+                section.name,
+              )}
+            </td>
+
+            <td>
+              ${esc(
+                test.name,
+              )}
+            </td>
+
+            <td>
+              ${esc(
+                test.count,
+              )}
+            </td>
+
+          </tr>
+        `;
+      }
+    }
+
     return `
       <!DOCTYPE html>
 
@@ -1888,9 +1793,7 @@ const buildStatsHtml =
 
       <head>
 
-        <meta
-          charset="UTF-8"
-        />
+        <meta charset="UTF-8" />
 
         <meta
           name="viewport"
@@ -1906,8 +1809,13 @@ const buildStatsHtml =
             margin-bottom: 18px;
           }
 
+          .logo-wrap {
+            margin-bottom: 6px;
+          }
+
           .logo {
             max-height: 30mm;
+            height: auto;
             object-fit: contain;
           }
 
@@ -1934,13 +1842,25 @@ const buildStatsHtml =
             margin-bottom: 20px;
           }
 
-          .summary td {
+          .summary td,
+          .summary th {
             width: 25%;
           }
 
           .number {
             font-size: 18px;
             font-weight: 900;
+          }
+
+          .section-summary {
+            margin-top: 18px;
+            margin-bottom: 18px;
+          }
+
+          .section-summary-title {
+            font-weight: 900;
+            background: #eeeeee;
+            padding: 7px;
           }
 
           .footer {
@@ -1962,7 +1882,9 @@ const buildStatsHtml =
 
           ${
             ps.showCenter &&
-            ps.labCenter
+            hasValue(
+              ps.labCenter,
+            )
               ? `
                 <div class="center">
                   ${esc(
@@ -1975,7 +1897,9 @@ const buildStatsHtml =
 
           ${
             ps.showDirectorate &&
-            ps.directorate
+            hasValue(
+              ps.directorate,
+            )
               ? `
                 <div class="directorate">
                   ${esc(
@@ -1994,98 +1918,77 @@ const buildStatsHtml =
 
         <table class="summary">
 
-          <tr>
-
-            <th>
-              إجمالي المرضى
-            </th>
-
-            <th>
-              سجلات اليوم
-            </th>
-
-            <th>
-              ذكور
-            </th>
-
-            <th>
-              إناث
-            </th>
-
-          </tr>
-
-          <tr>
-
-            <td class="number">
-              ${esc(
-                stats?.total ??
-                  0,
-              )}
-            </td>
-
-            <td class="number">
-              ${esc(
-                stats?.today ??
-                  0,
-              )}
-            </td>
-
-            <td class="number">
-              ${esc(
-                stats?.males ??
-                  0,
-              )}
-            </td>
-
-            <td class="number">
-              ${esc(
-                stats?.females ??
-                  0,
-              )}
-            </td>
-
-          </tr>
-
-        </table>
-
-        <table>
-
           <thead>
-
             <tr>
-
-              <th>
-                القسم
-              </th>
-
-              <th>
-                الفحص
-              </th>
-
-              <th>
-                العدد
-              </th>
-
+              <th>إجمالي المرضى</th>
+              <th>سجلات اليوم</th>
+              <th>ذكور</th>
+              <th>إناث</th>
             </tr>
-
           </thead>
 
           <tbody>
+            <tr>
 
-            ${
-              sectionRows ||
-              `
-                <tr>
-                  <td colspan="3">
-                    لا توجد بيانات فحوصات.
-                  </td>
-                </tr>
-              `
-            }
+              <td class="number">
+                ${esc(
+                  stats.total,
+                )}
+              </td>
 
+              <td class="number">
+                ${esc(
+                  stats.today,
+                )}
+              </td>
+
+              <td class="number">
+                ${esc(
+                  stats.males,
+                )}
+              </td>
+
+              <td class="number">
+                ${esc(
+                  stats.females,
+                )}
+              </td>
+
+            </tr>
           </tbody>
 
         </table>
+
+        ${
+          stats.sections.length
+            ? `
+              <table>
+
+                <thead>
+                  <tr>
+                    <th>القسم</th>
+                    <th>الفحص</th>
+                    <th>عدد النتائج</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  ${sectionRows}
+                </tbody>
+
+              </table>
+            `
+            : `
+              <div
+                style="
+                  text-align:center;
+                  padding:20px;
+                "
+              >
+                لا توجد بيانات فحوصات.
+              </div>
+            `
+        }
 
         ${
           ps.showFooter
@@ -2111,11 +2014,10 @@ const buildStatsHtml =
 
 export const exportStatsPdf =
   async (
-    stats: any,
+    stats: LabStats,
     settings: any = {},
-    options: any = {},
+    options: PrintOptions = {},
   ) => {
-
     const html =
       buildStatsHtml(
         stats,
@@ -2142,11 +2044,10 @@ export const exportStatsPdf =
 
 export const printStats =
   async (
-    stats: any,
+    stats: LabStats,
     settings: any = {},
-    options: any = {},
+    options: PrintOptions = {},
   ) => {
-
     const html =
       buildStatsHtml(
         stats,
@@ -2157,4 +2058,4 @@ export const printStats =
     await Print.printAsync({
       html,
     });
-  };
+  };};
