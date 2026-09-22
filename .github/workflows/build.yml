@@ -19,18 +19,18 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Setup Expo
+      - name: Check Expo version
         run: npx expo --version
+
+      - name: Check Expo configuration
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx expo config --json
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Check Expo configuration
-  env:
-    EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-  run: npx expo config --json
-
-- name: Build Android APK
-  env:
-    EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-  run: eas build --platform android --profile preview --non-interactive
+      - name: Build Android APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform android --profile preview --non-interactive
