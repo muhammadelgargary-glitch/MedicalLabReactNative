@@ -1,1156 +1,674 @@
-import React, {
-  useEffect,
-  useState,
-} from "react";
-
+import React, { useEffect, useState } from 'react';
 import {
-  Alert,
-  Image,
-  SafeAreaView,
   ScrollView,
+  View,
+  Text,
+  TouchableOpacity,
   StyleSheet,
   Switch,
-  Text,
+  Alert,
+  Modal,
   TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+  ActivityIndicator,
+} from 'react-native';
 
-import * as ImagePicker from "expo-image-picker";
-
-import {
-  useLabStore,
-} from "../store/useLabStore";
+import { useLabStore } from '../store/useLabStore';
+import { exportBackup, importBackup } from '../services/exportService';
 
 import {
-  backupData,
-  importBackupData,
-} from "../services/exportService";
-
-import {
-  restoreGoogleSession,
+  configureGoogleSignIn,
+  getSavedGoogleUser,
   signInWithGoogle,
+  restoreGoogleSession,
   signOutGoogle,
   uploadBackupToDrive,
   restoreLatestBackupFromDrive,
-  getLastDriveBackupTime,
   getDriveBackupSummary,
-} from "../services/googleDriveService";
-
-
-/* =========================================
-   الثوابت
-========================================= */
+  type GoogleUser,
+  type DriveBackupPayload,
+} from '../services/googleDriveService';
 
 const THEMES = [
-  {
-    key: "default",
-    name: "زيتي",
-    color: "#1d3b36",
-  },
-  {
-    key: "blue",
-    name: "أزرق",
-    color: "#2563eb",
-  },
-  {
-    key: "purple",
-    name: "بنفسجي",
-    color: "#7c3aed",
-  },
-  {
-    key: "teal",
-    name: "تركوازي",
-    color: "#0f766e",
-  },
-  {
-    key: "rose",
-    name: "وردي",
-    color: "#be123c",
-  },
-  {
-    key: "amber",
-    name: "ذهبي",
-    color: "#b45309",
-  },
+  { key: 'default', name: 'الافتراضي', color: '#1d3b36' },
+  { key: 'blue', name: 'أزرق طبي', color: '#1565c0' },
+  { key: 'purple', name: 'بنفسجي', color: '#6a1b9a' },
+  { key: 'teal', name: 'تركوازي', color: '#00796b' },
+  { key: 'rose', name: 'وردي', color: '#ad1457' },
+  { key: 'amber', name: 'كهرماني', color: '#ef6c00' },
 ];
 
 const FONTS = [
-  "Tajawal",
-  "Zain",
-  "Cairo",
-  "Almarai",
-  "Changa",
-  "IBM Plex Sans Arabic",
+  'Tajawal',
+  'Zain',
+  'Cairo',
+  'Almarai',
+  'Changa',
+  'IBM Plex Sans Arabic',
 ];
 
 const FONT_SIZES = [
-  {
-    value: 12,
-    name: "صغير",
-  },
-  {
-    value: 14,
-    name: "متوسط",
-  },
-  {
-    value: 17,
-    name: "كبير",
-  },
+  { key: 12, name: 'صغير' },
+  { key: 14, name: 'متوسط' },
+  { key: 17, name: 'كبير' },
 ];
 
 const PRINT_LAYOUTS = [
-  {
-    key: "auto",
-    name: "تلقائي",
-  },
-  {
-    key: "1",
-    name: "تقرير واحد",
-  },
-  {
-    key: "2",
-    name: "تقريران",
-  },
-  {
-    key: "2stack",
-    name: "2 متراص",
-  },
-  {
-    key: "3",
-    name: "3 تقارير",
-  },
-  {
-    key: "4",
-    name: "4 تقارير",
-  },
+  { key: 'auto', name: 'تلقائي' },
+  { key: '1', name: 'تقرير واحد' },
+  { key: '2', name: 'تقريران' },
+  { key: '2stack', name: 'تقريران متتاليان' },
+  { key: '3', name: '3 تقارير' },
+  { key: '4', name: '4 تقارير' },
 ];
 
 const PAPER_OPTIONS = [
-  {
-    key: "A4",
-    name: "A4",
-  },
-  {
-    key: "A5",
-    name: "A5",
-  },
-  {
-    key: "Letter",
-    name: "Letter",
-  },
+  { key: 'A4', name: 'A4' },
+  { key: 'A5', name: 'A5' },
+  { key: 'Letter', name: 'Letter' },
 ];
 
 const LOGO_POSITIONS = [
-  {
-    key: "right",
-    name: "يمين",
-  },
-  {
-    key: "center",
-    name: "وسط",
-  },
-  {
-    key: "left",
-    name: "يسار",
-  },
+  { key: 'right', name: 'يمين' },
+  { key: 'center', name: 'وسط' },
+  { key: 'left', name: 'يسار' },
 ];
 
 const LOGO_SIZES = [
-  {
-    key: 16,
-    name: "صغير",
-  },
-  {
-    key: 24,
-    name: "متوسط",
-  },
-  {
-    key: 32,
-    name: "كبير",
-  },
+  { key: 16, name: 'صغير' },
+  { key: 24, name: 'متوسط' },
+  { key: 32, name: 'كبير' },
 ];
 
-
-/* =========================================
-   الشاشة
-========================================= */
-
 export default function SettingsScreen() {
-
   const {
     settings,
     setSetting,
+    patients,
+    auditLog,
+    importBackupData,
+    addAudit,
   } = useLabStore();
 
+  const [modal, setModal] = useState(false);
+  const [pending, setPending] = useState<any>(null);
 
-  /* =======================================
-     حالات Google Drive
-  ======================================= */
+  const [googleUser, setGoogleUser] =
+    useState<GoogleUser | null>(null);
 
-  const [
-    driveUser,
-    setDriveUser,
-  ] = useState<any>(null);
+  const [driveBusy, setDriveBusy] =
+    useState(false);
 
-  const [
-    driveSummary,
-    setDriveSummary,
-  ] = useState("");
+  const [driveSummary, setDriveSummary] =
+    useState<any>(null);
 
-  const [
-    driveLoading,
-    setDriveLoading,
-  ] = useState(false);
+  const [labModal, setLabModal] = useState<
+    null | 'center' | 'directorate' | 'reportTitle' | 'footerText'
+  >(null);
 
+  const [labText, setLabText] = useState('');
 
-  /* =======================================
-     حالات المختبر
-  ======================================= */
+  const [priceName, setPriceName] = useState('');
+  const [priceValue, setPriceValue] = useState('');
 
-  const [
-    newPriceTest,
-    setNewPriceTest,
-  ] = useState("");
+  const [criticalName, setCriticalName] = useState('');
+  const [criticalLow, setCriticalLow] = useState('');
+  const [criticalHigh, setCriticalHigh] = useState('');
 
-  const [
-    newPriceValue,
-    setNewPriceValue,
-  ] = useState("");
-
-
-  const [
-    newRangeTest,
-    setNewRangeTest,
-  ] = useState("");
-
-  const [
-    newRangeLow,
-    setNewRangeLow,
-  ] = useState("");
-
-  const [
-    newRangeHigh,
-    setNewRangeHigh,
-  ] = useState("");
-
-
-  /* =======================================
-     حالات النوافذ
-  ======================================= */
-
-  const [
-    importModalVisible,
-    setImportModalVisible,
-  ] = useState(false);
-
-  const [
-    labEditorVisible,
-    setLabEditorVisible,
-  ] = useState(false);
-
-  const [
-    labEditorType,
-    setLabEditorType,
-  ] = useState<
-    "center" | "directorate"
-  >("center");
-
-  const [
-    labEditorValue,
-    setLabEditorValue,
-  ] = useState("");
-
-
-  /* =======================================
-     استعادة جلسة Google
-  ======================================= */
+  const printSettings = settings.printSettings || {};
 
   useEffect(() => {
-
     let mounted = true;
 
-    const restore = async () => {
-
+    (async () => {
       try {
+        await configureGoogleSignIn();
 
-        const user =
-          await restoreGoogleSession();
+        const saved = await getSavedGoogleUser();
 
-        if (
-          mounted &&
-          user
-        ) {
-          setDriveUser(user);
+        if (mounted && saved) {
+          setGoogleUser(saved);
         }
 
-      } catch (error) {
+        const restored =
+          await restoreGoogleSession();
 
-        console.log(
-          "GOOGLE RESTORE ERROR:",
-          error
-        );
-
-      }
-
-    };
-
-    restore();
+        if (mounted && restored) {
+          setGoogleUser(restored.user);
+          await refreshDriveSummary();
+        }
+      } catch {}
+    })();
 
     return () => {
       mounted = false;
     };
-
   }, []);
 
+  const refreshDriveSummary = async () => {
+    try {
+      const summary =
+        await getDriveBackupSummary();
 
-  /* =======================================
-     تحديث ملخص Drive
-  ======================================= */
+      setDriveSummary(summary);
+    } catch {
+      setDriveSummary(null);
+    }
+  };
 
-  const refreshDriveSummary =
-    async () => {
-
-      try {
-
-        const summary =
-          await getDriveBackupSummary();
-
-        setDriveSummary(
-          summary || ""
-        );
-
-      } catch (error) {
-
-        console.log(
-          "DRIVE SUMMARY ERROR:",
-          error
-        );
-
-      }
-
-    };
-
-
-  /* =======================================
-     تحديث إعداد
-  ======================================= */
-
-  const updateSetting = (
+  const updatePrint = async (
     key: string,
     value: any
   ) => {
-
-    setSetting(
-      key as any,
-      value
-    );
-
+    await setSetting('printSettings', {
+      ...settings.printSettings,
+      [key]: value,
+    });
   };
 
-
-  /* =======================================
-     تحديث إعدادات الطباعة
-  ======================================= */
-
-  const updatePrint = (
-    values: any
+  const updateSetting = async (
+    key: string,
+    value: any
   ) => {
-
-    setSetting(
-      "printSettings" as any,
-      {
-        ...settings.printSettings,
-        ...values,
-      }
-    );
-
+    await setSetting(key, value);
   };
 
+  const backup = async () => {
+    try {
+      await exportBackup({
+        patients,
+        settings,
+        auditLog,
+      });
 
-  /* =======================================
-     تسجيل الدخول Google
-  ======================================= */
+      Alert.alert(
+        'تم',
+        'تم إنشاء النسخة الاحتياطية ويمكنك حفظها أو إرسالها.'
+      );
+    } catch (e: any) {
+      Alert.alert(
+        'خطأ',
+        e?.message ||
+          'تعذر إنشاء النسخة الاحتياطية.'
+      );
+    }
+  };
 
-  const signIn =
-    async () => {
+  const importFile = async () => {
+    try {
+      const data = await importBackup();
 
-      if (driveLoading) {
+      if (!data) return;
+
+      setPending(data);
+      setModal(true);
+    } catch (e: any) {
+      Alert.alert(
+        'خطأ في الاستيراد',
+        e?.message ||
+          'ملف غير صالح.'
+      );
+    }
+  };
+
+  const apply = async (
+    mode: 'restore' | 'merge'
+  ) => {
+    if (!pending) return;
+
+    try {
+      await importBackupData(
+        mode,
+        pending
+      );
+
+      addAudit(
+        mode === 'restore'
+          ? 'استعادة نسخة محلية'
+          : 'دمج نسخة محلية',
+        'backup',
+        mode === 'restore'
+          ? 'تم استبدال البيانات بالنسخة الاحتياطية المحلية'
+          : 'تم دمج النسخة الاحتياطية المحلية مع البيانات الحالية'
+      );
+
+      setModal(false);
+      setPending(null);
+
+      Alert.alert(
+        'تم الاستيراد',
+        mode === 'restore'
+          ? 'تم استبدال البيانات الحالية بنجاح.'
+          : 'تم دمج البيانات بنجاح.'
+      );
+    } catch (e: any) {
+      Alert.alert(
+        'خطأ',
+        e?.message ||
+          'تعذر استيراد النسخة.'
+      );
+    }
+  };
+
+  const signIn = async () => {
+    try {
+      setDriveBusy(true);
+
+      const result =
+        await signInWithGoogle();
+
+      setGoogleUser(result.user);
+
+      await refreshDriveSummary();
+
+      Alert.alert(
+        'تم تسجيل الدخول',
+        `تم تسجيل الدخول بالحساب:\n${result.user.email}`
+      );
+    } catch (e: any) {
+      console.log(
+        'GOOGLE SIGN-IN ERROR:',
+        e
+      );
+
+      const code =
+        e?.code ||
+        e?.statusCodes ||
+        e?.nativeErrorCode ||
+        'NO_ERROR_CODE';
+
+      const message =
+        e?.message ||
+        e?.toString?.() ||
+        'خطأ غير معروف';
+
+      Alert.alert(
+        'فشل تسجيل الدخول إلى Google',
+        `رمز الخطأ: ${code}\n\n${message}`
+      );
+    } finally {
+      setDriveBusy(false);
+    }
+  };
+
+  const driveBackup = async () => {
+    try {
+      setDriveBusy(true);
+
+      const payload: DriveBackupPayload = {
+        app: 'lab-app',
+        version: 5,
+        exportedAt:
+          new Date().toISOString(),
+        patients,
+        settings,
+        auditLog,
+      };
+
+      await uploadBackupToDrive(
+        payload
+      );
+
+      addAudit(
+        'رفع نسخة احتياطية إلى Google Drive',
+        'backup',
+        'تم إنشاء نسخة سحابية والاحتفاظ بآخر النسخ'
+      );
+
+      await refreshDriveSummary();
+
+      Alert.alert(
+        'تم',
+        'تم رفع النسخة الاحتياطية إلى Google Drive.'
+      );
+    } catch (e: any) {
+      Alert.alert(
+        'فشل النسخ إلى Drive',
+        e?.message ||
+          'تعذر رفع النسخة.'
+      );
+    } finally {
+      setDriveBusy(false);
+    }
+  };
+
+  const driveRestore = async () => {
+    try {
+      setDriveBusy(true);
+
+      const data =
+        await restoreLatestBackupFromDrive();
+
+      if (!data) {
+        Alert.alert(
+          'لا توجد نسخة',
+          'لم يتم العثور على نسخة مختبر في Google Drive.'
+        );
         return;
       }
 
-      try {
-
-        setDriveLoading(true);
-
-        const user =
-          await signInWithGoogle();
-
-        setDriveUser(user);
-
-        await refreshDriveSummary();
-
-        Alert.alert(
-          "تم",
-          "تم تسجيل الدخول إلى Google بنجاح."
-        );
-
-      } catch (error: any) {
-
-        console.log(
-          "GOOGLE SIGN IN ERROR:",
-          error
-        );
-
-        Alert.alert(
-          "خطأ",
-          error?.message ||
-            "تعذر تسجيل الدخول إلى Google."
-        );
-
-      } finally {
-
-        setDriveLoading(false);
-
-      }
-
-    };
-
-
-  /* =======================================
-     تسجيل الخروج Google
-  ======================================= */
-
-  const signOut =
-    async () => {
-
-      try {
-
-        await signOutGoogle();
-
-        setDriveUser(null);
-        setDriveSummary("");
-
-        Alert.alert(
-          "تم",
-          "تم تسجيل الخروج."
-        );
-
-      } catch (error: any) {
-
-        Alert.alert(
-          "خطأ",
-          error?.message ||
-            "تعذر تسجيل الخروج."
-        );
-
-      }
-
-    };
-
-
-  /* =======================================
-     النسخ الاحتياطي إلى Drive
-  ======================================= */
-
-  const driveBackup =
-    async () => {
-
-      try {
-
-        if (!driveUser) {
-
-          Alert.alert(
-            "تنبيه",
-            "يجب تسجيل الدخول إلى Google أولاً."
-          );
-
-          return;
-        }
-
-        setDriveLoading(true);
-
-        await uploadBackupToDrive();
-
-        await refreshDriveSummary();
-
-        Alert.alert(
-          "تم",
-          "تم إنشاء النسخة الاحتياطية على Google Drive."
-        );
-
-      } catch (error: any) {
-
-        console.log(
-          "DRIVE BACKUP ERROR:",
-          error
-        );
-
-        Alert.alert(
-          "خطأ",
-          error?.message ||
-            "تعذر إنشاء النسخة الاحتياطية."
-        );
-
-      } finally {
-
-        setDriveLoading(false);
-
-      }
-
-    };
-
-
-  /* =======================================
-     الاستعادة من Drive
-  ======================================= */
-
-  const driveRestore =
-    async () => {
-
-      try {
-
-        if (!driveUser) {
-
-          Alert.alert(
-            "تنبيه",
-            "يجب تسجيل الدخول إلى Google أولاً."
-          );
-
-          return;
-        }
-
-        setDriveLoading(true);
-
-        const result =
-          await restoreLatestBackupFromDrive();
-
-        if (result) {
-
-          Alert.alert(
-            "تم",
-            "تمت استعادة البيانات بنجاح. سيتم تحديث التطبيق."
-          );
-
-        } else {
-
-          Alert.alert(
-            "تنبيه",
-            "لم يتم العثور على نسخة احتياطية."
-          );
-
-        }
-
-      } catch (error: any) {
-
-        console.log(
-          "DRIVE RESTORE ERROR:",
-          error
-        );
-
-        Alert.alert(
-          "خطأ",
-          error?.message ||
-            "تعذر استعادة النسخة الاحتياطية."
-        );
-
-      } finally {
-
-        setDriveLoading(false);
-
-      }
-
-    };
-
-
-  /* =======================================
-     النسخ المحلي
-  ======================================= */
-
-  const backup =
-    async () => {
-
-      try {
-
-        await backupData();
-
-        Alert.alert(
-          "تم",
-          "تم إنشاء النسخة الاحتياطية بنجاح."
-        );
-
-      } catch (error: any) {
-
-        Alert.alert(
-          "خطأ",
-          error?.message ||
-            "تعذر إنشاء النسخة الاحتياطية."
-        );
-
-      }
-
-    };
-
-
-  /* =======================================
-     استيراد نسخة
-  ======================================= */
-
-  const importFile =
-    async () => {
-
-      try {
-
-        const result =
-          await importBackupData();
-
-        if (result) {
-
-          Alert.alert(
-            "تم",
-            "تم استيراد البيانات بنجاح."
-          );
-
-        }
-
-      } catch (error: any) {
-
-        console.log(
-          "IMPORT ERROR:",
-          error
-        );
-
-        Alert.alert(
-          "خطأ",
-          error?.message ||
-            "تعذر استيراد النسخة."
-        );
-
-      }
-
-    };
-    /* =======================================
-     حفظ بيانات المختبر
-  ======================================= */
-
-  const saveLabText = () => {
-
-    const value =
-      labEditorValue.trim();
-
-    if (!value) {
-      return;
-    }
-
-    updateSetting(
-      labEditorType,
-      value
-    );
-
-    setLabEditorVisible(false);
-
-  };
-
-
-  /* =======================================
-     فتح محرر بيانات المختبر
-  ======================================= */
-
-  const openLabEditor = (
-    type:
-      | "center"
-      | "directorate"
-  ) => {
-
-    setLabEditorType(type);
-
-    setLabEditorValue(
-      type === "center"
-        ? settings.center
-        : settings.directorate
-    );
-
-    setLabEditorVisible(true);
-
-  };
-
-
-  /* =======================================
-     إضافة سعر
-  ======================================= */
-
-  const addPrice = () => {
-
-    const test =
-      newPriceTest.trim();
-
-    const price =
-      Number(newPriceValue);
-
-    if (!test) {
-
       Alert.alert(
-        "تنبيه",
-        "اكتب اسم الفحص أولاً."
-      );
-
-      return;
-    }
-
-    if (
-      Number.isNaN(price) ||
-      price < 0
-    ) {
-
-      Alert.alert(
-        "تنبيه",
-        "أدخل سعراً صحيحاً."
-      );
-
-      return;
-    }
-
-    updateSetting(
-      "testPrices",
-      {
-        ...(settings.testPrices || {}),
-        [test]: price,
-      }
-    );
-
-    setNewPriceTest("");
-    setNewPriceValue("");
-
-  };
-
-
-  /* =======================================
-     حذف سعر
-  ======================================= */
-
-  const deletePrice = (
-    testName: string
-  ) => {
-
-    Alert.alert(
-      "حذف السعر",
-      `هل تريد حذف سعر فحص "${testName}"؟`,
-      [
-        {
-          text: "إلغاء",
-          style: "cancel",
-        },
-        {
-          text: "حذف",
-          style: "destructive",
-          onPress: () => {
-
-            const next = {
-              ...(settings.testPrices || {}),
-            };
-
-            delete next[testName];
-
-            updateSetting(
-              "testPrices",
-              next
-            );
-
-          },
-        },
-      ]
-    );
-
-  };
-
-
-  /* =======================================
-     إضافة حد حرج
-  ======================================= */
-
-  const addCriticalRange = () => {
-
-    const test =
-      newRangeTest.trim();
-
-    const low =
-      Number(newRangeLow);
-
-    const high =
-      Number(newRangeHigh);
-
-    if (!test) {
-
-      Alert.alert(
-        "تنبيه",
-        "اكتب اسم الفحص أولاً."
-      );
-
-      return;
-    }
-
-    if (
-      Number.isNaN(low) ||
-      Number.isNaN(high)
-    ) {
-
-      Alert.alert(
-        "تنبيه",
-        "أدخل القيم بشكل صحيح."
-      );
-
-      return;
-    }
-
-    if (low >= high) {
-
-      Alert.alert(
-        "تنبيه",
-        "يجب أن يكون الحد الأدنى أقل من الحد الأعلى."
-      );
-
-      return;
-    }
-
-    updateSetting(
-      "criticalRanges",
-      {
-        ...(settings.criticalRanges || {}),
-        [test]: {
-          low,
-          high,
-        },
-      }
-    );
-
-    setNewRangeTest("");
-    setNewRangeLow("");
-    setNewRangeHigh("");
-
-  };
-
-
-  /* =======================================
-     حذف حد حرج
-  ======================================= */
-
-  const deleteCriticalRange = (
-    testName: string
-  ) => {
-
-    Alert.alert(
-      "حذف الحد الحرج",
-      `هل تريد حذف إعداد "${testName}"؟`,
-      [
-        {
-          text: "إلغاء",
-          style: "cancel",
-        },
-        {
-          text: "حذف",
-          style: "destructive",
-          onPress: () => {
-
-            const next = {
-              ...(settings.criticalRanges || {}),
-            };
-
-            delete next[testName];
-
-            updateSetting(
-              "criticalRanges",
-              next
-            );
-
-          },
-        },
-      ]
-    );
-
-  };
-
-
-  /* =======================================
-     تغيير شعار المختبر
-  ======================================= */
-
-  const changeLogo =
-    async () => {
-
-      try {
-
-        const permission =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-        if (
-          !permission.granted
-        ) {
-
-          Alert.alert(
-            "صلاحية مطلوبة",
-            "يجب السماح للتطبيق بالوصول إلى الصور لاختيار شعار المختبر."
-          );
-
-          return;
-        }
-
-        const result =
-          await ImagePicker.launchImageLibraryAsync(
-            {
-              mediaTypes:
-                ["images"],
-              allowsEditing: true,
-              aspect: [1, 1],
-              quality: 0.8,
-            }
-          );
-
-        if (
-          result.canceled ||
-          !result.assets ||
-          !result.assets.length
-        ) {
-          return;
-        }
-
-        const uri =
-          result.assets[0].uri;
-
-        updateSetting(
-          "logo",
-          uri
-        );
-
-        Alert.alert(
-          "تم",
-          "تم اختيار شعار المختبر."
-        );
-
-      } catch (error: any) {
-
-        console.log(
-          "LOGO ERROR:",
-          error
-        );
-
-        Alert.alert(
-          "خطأ",
-          error?.message ||
-            "تعذر اختيار الشعار."
-        );
-
-      }
-
-    };
-
-
-  /* =======================================
-     إعادة إعدادات الطباعة
-  ======================================= */
-
-  const resetPrintSettings =
-    () => {
-
-      Alert.alert(
-        "إعادة الإعدادات",
-        "هل تريد إعادة إعدادات الطباعة إلى الإعدادات الافتراضية؟",
+        'استعادة من Google Drive',
+        `تم العثور على أحدث نسخة تحتوي على ${data.patients.length} مريض.\nهل تريد استبدال البيانات الحالية بها؟`,
         [
           {
-            text: "إلغاء",
-            style: "cancel",
+            text: 'إلغاء',
+            style: 'cancel',
           },
           {
-            text: "إعادة",
-            onPress: () => {
+            text: 'استعادة',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await importBackupData(
+                  'restore',
+                  data
+                );
 
-              updateSetting(
-                "printSettings",
-                {
-                  paper: "A4",
-                  orientation:
-                    "portrait",
-                  layout: "auto",
-                  gap: 4,
+                addAudit(
+                  'استيراد نسخة من Google Drive',
+                  'backup',
+                  'تم استعادة أحدث نسخة سحابية'
+                );
 
-                  marginTop: 8,
-                  marginRight: 8,
-                  marginBottom: 8,
-                  marginLeft: 8,
-
-                  fontSize: 13,
-                  tableFontSize: 11,
-
-                  fontFamily:
-                    "Tajawal",
-
-                  showLogo: true,
-
-                  logoPosition:
-                    "right",
-
-                  logoSize: 24,
-
-                  reportTitle:
-                    "تقرير الفحوصات المخبرية",
-
-                  showCenter: true,
-                  showDirectorate: true,
-                  showDate: true,
-                  showSeq: true,
-                  showNotes: true,
-                  showFooter: true,
-
-                  footerText:
-                    "مع تمنياتنا بالصحة والعافية",
-
-                  showBorder: true,
-
-                  borderColor:
-                    "#777777",
-
-                  showNormal: true,
-                }
-              );
-
+                Alert.alert(
+                  'تم',
+                  'تم استعادة أحدث نسخة من Google Drive بنجاح.'
+                );
+              } catch (e: any) {
+                Alert.alert(
+                  'خطأ',
+                  e?.message ||
+                    'تعذر استعادة النسخة.'
+                );
+              }
             },
           },
         ]
       );
+    } catch (e: any) {
+      Alert.alert(
+        'فشل الاستعادة من Drive',
+        e?.message ||
+          'تعذر تحميل النسخة.'
+      );
+    } finally {
+      setDriveBusy(false);
+    }
+  };
 
+  const signOut = async () => {
+    try {
+      setDriveBusy(true);
+
+      await signOutGoogle();
+
+      setGoogleUser(null);
+      setDriveSummary(null);
+
+      addAudit(
+        'تسجيل الخروج من حساب Google',
+        'backup',
+        'تم تسجيل الخروج من حساب Google'
+      );
+    } catch (e: any) {
+      Alert.alert(
+        'خطأ',
+        e?.message ||
+          'تعذر تسجيل الخروج.'
+      );
+    } finally {
+      setDriveBusy(false);
+    }
+  };
+
+  const openLabEditor = (
+    key:
+      | 'center'
+      | 'directorate'
+      | 'reportTitle'
+      | 'footerText'
+  ) => {
+    setLabModal(key);
+
+    setLabText(
+      key === 'reportTitle'
+        ? printSettings.reportTitle || ''
+        : key === 'footerText'
+        ? printSettings.footerText || ''
+        : settings[key] || ''
+    );
+  };
+
+  const saveLabText = async () => {
+    if (!labModal) return;
+
+    if (!labText.trim()) {
+      Alert.alert(
+        'تنبيه',
+        'يرجى إدخال النص.'
+      );
+      return;
+    }
+
+    if (labModal === 'reportTitle') {
+      await updatePrint(
+        'reportTitle',
+        labText.trim()
+      );
+    } else if (
+      labModal === 'footerText'
+    ) {
+      await updatePrint(
+        'footerText',
+        labText.trim()
+      );
+    } else {
+      await updateSetting(
+        labModal,
+        labText.trim()
+      );
+    }
+
+    setLabModal(null);
+  };
+
+  const addPrice = async () => {
+    const name = priceName.trim();
+
+    if (!name) {
+      Alert.alert(
+        'تنبيه',
+        'أدخل اسم الفحص.'
+      );
+      return;
+    }
+
+    const value = Number(
+      priceValue
+    );
+
+    if (
+      !Number.isFinite(value) ||
+      value < 0
+    ) {
+      Alert.alert(
+        'تنبيه',
+        'أدخل سعرًا صحيحًا.'
+      );
+      return;
+    }
+
+    const prices = {
+      ...(settings.testPrices || {}),
+      [name]: value,
     };
 
+    await updateSetting(
+      'testPrices',
+      prices
+    );
 
-  /* =======================================
-     حفظ كل الإعدادات
-  ======================================= */
-
-  const apply = () => {
+    setPriceName('');
+    setPriceValue('');
 
     Alert.alert(
-      "تم الحفظ",
-      "تم حفظ إعدادات المختبر بنجاح."
+      'تم',
+      'تم حفظ سعر الفحص.'
     );
-
   };
 
-
-  /* =======================================
-     إدخال رقمي
-  ======================================= */
-
-  const renderNumberInput = (
-    label: string,
-    value: number,
-    onChange: (
-      value: number
-    ) => void,
-    min = 0,
-    max = 100
+  const deletePrice = async (
+    name: string
   ) => {
+    const prices = {
+      ...(settings.testPrices || {}),
+    };
 
-    return (
-      <View
-        style={
-          styles.numberRow
-        }
-      >
+    delete prices[name];
 
-        <Text
-          style={
-            styles.inputLabel
-          }
-        >
-          {label}
-        </Text>
-
-        <TextInput
-          value={String(
-            value ?? 0
-          )}
-          onChangeText={(text) => {
-
-            if (text === "") {
-              onChange(min);
-              return;
-            }
-
-            const parsed =
-              Number(text);
-
-            if (
-              !Number.isNaN(parsed)
-            ) {
-
-              onChange(
-                Math.max(
-                  min,
-                  Math.min(
-                    max,
-                    parsed
-                  )
-                )
-              );
-
-            }
-
-          }}
-          keyboardType="numeric"
-          style={
-            styles.numberInput
-          }
-        />
-
-      </View>
+    await updateSetting(
+      'testPrices',
+      prices
     );
-
   };
 
+  const addCriticalRange = async () => {
+    const name =
+      criticalName.trim();
 
-  /* =======================================
-     Switch
-  ======================================= */
+    if (!name) {
+      Alert.alert(
+        'تنبيه',
+        'أدخل اسم الفحص.'
+      );
+      return;
+    }
 
-  const renderSwitch = (
-    label: string,
-    value: boolean,
-    onChange: (
-      value: boolean
-    ) => void
+    const low =
+      criticalLow.trim() === ''
+        ? ''
+        : Number(criticalLow);
+
+    const high =
+      criticalHigh.trim() === ''
+        ? ''
+        : Number(criticalHigh);
+
+    if (
+      (low !== '' &&
+        !Number.isFinite(low)) ||
+      (high !== '' &&
+        !Number.isFinite(high))
+    ) {
+      Alert.alert(
+        'تنبيه',
+        'أدخل حدودًا رقمية صحيحة.'
+      );
+      return;
+    }
+
+    const ranges = {
+      ...(settings.criticalRanges ||
+        {}),
+      [name]: {
+        low,
+        high,
+      },
+    };
+
+    await updateSetting(
+      'criticalRanges',
+      ranges
+    );
+
+    setCriticalName('');
+    setCriticalLow('');
+    setCriticalHigh('');
+
+    Alert.alert(
+      'تم',
+      'تم حفظ الحدود الحرجة.'
+    );
+  };
+
+  const deleteCriticalRange = async (
+    name: string
   ) => {
+    const ranges = {
+      ...(settings.criticalRanges ||
+        {}),
+    };
 
-    return (
-      <View
-        style={
-          styles.switchRow
-        }
-      >
+    delete ranges[name];
 
-        <Text
-          style={
-            styles.switchLabel
-          }
-        >
-          {label}
-        </Text>
-
-        <Switch
-          value={
-            Boolean(value)
-          }
-          onValueChange={
-            onChange
-          }
-        />
-
-      </View>
+    await updateSetting(
+      'criticalRanges',
+      ranges
     );
-
   };
 
+  const resetPrintSettings =
+    async () => {
+      const defaults = {
+        paper: 'A4',
+        orientation: 'portrait',
+        layout: 'auto',
+        gap: 4,
+        marginTop: 8,
+        marginRight: 8,
+        marginBottom: 8,
+        marginLeft: 8,
+        fontSize: 13,
+        tableFontSize: 11,
+        fontFamily: 'Tajawal',
+        showLogo: true,
+        logoPosition: 'right',
+        logoSize: 24,
+        reportTitle:
+          'تقرير الفحوصات المخبرية',
+        showCenter: true,
+        showDirectorate: true,
+        showDate: true,
+        showSeq: true,
+        showNotes: true,
+        showFooter: true,
+        showBorder: true,
+        borderColor: '#777777',
+        showNormal: true,
+        footerText:
+          'مع تمنياتنا بالصحة والعافية',
+      };
 
-  /* =======================================
-     خيارات متعددة
-  ======================================= */
+      await setSetting(
+        'printSettings',
+        defaults
+      );
+
+      Alert.alert(
+        'تم',
+        'تمت إعادة إعدادات الطباعة إلى الإعدادات الافتراضية.'
+      );
+    };
+
+  const changeLogo = () => {
+    Alert.alert(
+      'الشعار',
+      'إضافة/اختيار صورة الشعار سيتم ربطها في المرحلة الخاصة بإدارة الملفات والشعار.'
+    );
+  };
+
+  const printSettingNumber = (
+    key: string,
+    defaultValue: number
+  ) => {
+    const value = Number(
+      printSettings[key]
+    );
+
+    return Number.isFinite(value)
+      ? value
+      : defaultValue;
+  };
 
   const renderChoice = (
     items: {
@@ -1162,63 +680,87 @@ export default function SettingsScreen() {
       value: any
     ) => void
   ) => {
-
     return (
-      <View
-        style={
-          styles.chips
-        }
-      >
+      <View style={styles.chips}>
+        {items.map((item) => {
+          const active =
+            selected === item.key;
 
-        {items.map(
-          (item) => {
-
-            const active =
-              selected ===
-              item.key;
-
-            return (
-              <TouchableOpacity
-                key={String(
-                  item.key
-                )}
-                onPress={() =>
-                  onSelect(
-                    item.key
-                  )
+          return (
+            <TouchableOpacity
+              key={String(item.key)}
+              onPress={() =>
+                onSelect(item.key)
+              }
+              style={[
+                styles.chip,
+                active &&
+                  styles.chipOn,
+              ]}
+            >
+              <Text
+                style={
+                  active
+                    ? styles.chipOnText
+                    : styles.chipText
                 }
-                style={[
-                  styles.chip,
-                  active &&
-                    styles.chipOn,
-                ]}
               >
-
-                <Text
-                  style={
-                    active
-                      ? styles.chipOnText
-                      : styles.chipText
-                  }
-                >
-                  {item.name}
-                </Text>
-
-              </TouchableOpacity>
-            );
-
-          }
-        )}
-
+                {item.name}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     );
+  };  const renderNumberInput = (
+    label: string,
+    value: number,
+    onChange: (value: number) => void,
+    min = 0,
+    max = 100
+  ) => {
+    return (
+      <View style={styles.numberRow}>
+        <Text style={styles.inputLabel}>{label}</Text>
 
+        <TextInput
+          value={String(value)}
+          onChangeText={(text) => {
+            const parsed = Number(text);
+            if (!Number.isNaN(parsed)) {
+              onChange(
+                Math.max(
+                  min,
+                  Math.min(max, parsed)
+                )
+              );
+            }
+          }}
+          keyboardType="numeric"
+          style={styles.numberInput}
+        />
+      </View>
+    );
   };
 
+  const renderSwitch = (
+    label: string,
+    value: boolean,
+    onChange: (value: boolean) => void
+  ) => {
+    return (
+      <View style={styles.switchRow}>
+        <Text style={styles.switchLabel}>
+          {label}
+        </Text>
 
-  /* =======================================
-     البيانات المختصرة
-  ======================================= */
+        <Switch
+          value={value}
+          onValueChange={onChange}
+        />
+      </View>
+    );
+  };
 
   const prices =
     settings.testPrices || {};
@@ -1226,13 +768,7 @@ export default function SettingsScreen() {
   const criticalRanges =
     settings.criticalRanges || {};
 
-
-  /* =======================================
-     بداية الواجهة
-  ======================================= */
-
   return (
-
     <SafeAreaView
       style={[
         styles.safe,
@@ -1240,7 +776,6 @@ export default function SettingsScreen() {
           styles.safeDark,
       ]}
     >
-
       <ScrollView
         contentContainerStyle={
           styles.container
@@ -1249,91 +784,49 @@ export default function SettingsScreen() {
           false
         }
       >
-
         {/* العنوان */}
-
-        <View
-          style={
-            styles.header
-          }
-        >
-
-          <View
-            style={
-              styles.headerTextBox
-            }
-          >
-
+        <View style={styles.header}>
+          <View>
             <Text
-              style={
-                styles.headerTitle
-              }
+              style={styles.headerTitle}
             >
               إعدادات المختبر
             </Text>
 
             <Text
-              style={
-                styles.headerSubtitle
-              }
+              style={styles.headerSubtitle}
             >
               التحكم الكامل بإعدادات
               التطبيق
             </Text>
-
           </View>
 
           <TouchableOpacity
             onPress={apply}
-            style={
-              styles.saveButton
-            }
+            style={styles.saveButton}
           >
-
             <Text
-              style={
-                styles.saveButtonText
-              }
+              style={styles.saveButtonText}
             >
               حفظ
             </Text>
-
           </TouchableOpacity>
-
         </View>
 
-
-        {/* =================================
+        {/* =========================
             بيانات المختبر
-        ================================= */}
-
-        <View
-          style={
-            styles.section
-          }
-        >
-
-          <Text
-            style={
-              styles.sectionTitle
-            }
-          >
+        ========================= */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
             🏥 بيانات المختبر
           </Text>
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             اسم المركز / المختبر
           </Text>
 
           <TextInput
-            value={
-              settings.center
-            }
+            value={settings.center}
             onChangeText={(value) =>
               updateSetting(
                 "center",
@@ -1341,24 +834,15 @@ export default function SettingsScreen() {
               )
             }
             placeholder="اسم المركز"
-            style={
-              styles.input
-            }
+            style={styles.input}
           />
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             الدائرة / القطاع
           </Text>
 
           <TextInput
-            value={
-              settings.directorate
-            }
+            value={settings.directorate}
             onChangeText={(value) =>
               updateSetting(
                 "directorate",
@@ -1366,40 +850,23 @@ export default function SettingsScreen() {
               )
             }
             placeholder="الدائرة / القطاع"
-            style={
-              styles.input
-            }
+            style={styles.input}
           />
 
-
-          <View
-            style={
-              styles.infoBox
-            }
-          >
-
+          <View style={styles.infoBox}>
             <Text
-              style={
-                styles.infoText
-              }
+              style={styles.infoText}
             >
               سيتم استخدام هذه البيانات
               تلقائياً في التقارير
               المطبوعة.
             </Text>
-
           </View>
 
-
           <TouchableOpacity
-            style={
-              styles.secondaryButton
-            }
-            onPress={
-              changeLogo
-            }
+            style={styles.secondaryButton}
+            onPress={changeLogo}
           >
-
             <Text
               style={
                 styles.secondaryButtonText
@@ -1407,135 +874,81 @@ export default function SettingsScreen() {
             >
               🖼️ تغيير شعار المختبر
             </Text>
-
           </TouchableOpacity>
 
-
           {settings.logo ? (
-
-            <Image
-              source={{
-                uri:
-                  settings.logo,
-              }}
-              style={
-                styles.logoPreview
-              }
-              resizeMode="contain"
-            />
-
-          ) : (
-
             <Text
-              style={
-                styles.smallText
-              }
+              style={styles.smallText}
+            >
+              تم تعيين شعار للمختبر
+            </Text>
+          ) : (
+            <Text
+              style={styles.smallText}
             >
               لم يتم اختيار شعار
             </Text>
-
           )}
-
         </View>
 
-
-        {/* =================================
+        {/* =========================
             المظهر
-        ================================= */}
-
-        <View
-          style={
-            styles.section
-          }
-        >
-
-          <Text
-            style={
-              styles.sectionTitle
-            }
-          >
+        ========================= */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
             🎨 المظهر والألوان
           </Text>
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             القالب
           </Text>
 
+          <View style={styles.themeGrid}>
+            {THEMES.map((theme) => {
+              const active =
+                settings.theme ===
+                theme.key;
 
-          <View
-            style={
-              styles.themeGrid
-            }
-          >
-
-            {THEMES.map(
-              (theme) => {
-
-                const active =
-                  settings.theme ===
-                  theme.key;
-
-                return (
-
-                  <TouchableOpacity
-                    key={
+              return (
+                <TouchableOpacity
+                  key={theme.key}
+                  onPress={() =>
+                    updateSetting(
+                      "theme",
                       theme.key
-                    }
-                    onPress={() =>
-                      updateSetting(
-                        "theme",
-                        theme.key
-                      )
-                    }
+                    )
+                  }
+                  style={[
+                    styles.themeCard,
+                    active &&
+                      styles.themeCardActive,
+                  ]}
+                >
+                  <View
                     style={[
-                      styles.themeCard,
-                      active &&
-                        styles.themeCardActive,
-                    ]}
-                  >
-
-                    <View
-                      style={[
-                        styles.themeCircle,
-                        {
-                          backgroundColor:
-                            theme.color,
-                        },
-                      ]}
-                    />
-
-                    <Text
-                      style={
-                        active
-                          ? styles.themeNameActive
-                          : styles.themeName
-                      }
-                    >
+                      styles.themeCircle,
                       {
-                        theme.name
-                      }
-                    </Text>
+                        backgroundColor:
+                          theme.color,
+                      },
+                    ]}
+                  />
 
-                  </TouchableOpacity>
-
-                );
-
-              }
-            )}
-
+                  <Text
+                    style={
+                      active
+                        ? styles.themeNameActive
+                        : styles.themeName
+                    }
+                  >
+                    {theme.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             لون مخصص HEX
           </Text>
 
@@ -1552,11 +965,8 @@ export default function SettingsScreen() {
             }
             placeholder="#1d3b36"
             autoCapitalize="characters"
-            style={
-              styles.input
-            }
+            style={styles.input}
           />
-
 
           {renderSwitch(
             "الوضع الداكن",
@@ -1568,24 +978,15 @@ export default function SettingsScreen() {
               )
           )}
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             حجم الخط
           </Text>
 
           {renderChoice(
-            FONT_SIZES.map(
-              (item) => ({
-                key:
-                  item.value,
-                name:
-                  item.name,
-              })
-            ),
+            FONT_SIZES.map((item) => ({
+              key: item.value,
+              name: item.name,
+            })),
             settings.fontSizePx,
             (value) =>
               updateSetting(
@@ -1594,22 +995,15 @@ export default function SettingsScreen() {
               )
           )}
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             نوع الخط
           </Text>
 
           {renderChoice(
-            FONTS.map(
-              (font) => ({
-                key: font,
-                name: font,
-              })
-            ),
+            FONTS.map((font) => ({
+              key: font,
+              name: font,
+            })),
             settings.fontFamily,
             (value) =>
               updateSetting(
@@ -1618,28 +1012,19 @@ export default function SettingsScreen() {
               )
           )}
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             كثافة الواجهة
           </Text>
 
           {renderChoice(
             [
               {
-                key:
-                  "comfortable",
-                name:
-                  "مريحة",
+                key: "comfortable",
+                name: "مريحة",
               },
               {
-                key:
-                  "compact",
-                name:
-                  "مضغوطة",
+                key: "compact",
+                name: "مضغوطة",
               },
             ],
             settings.density,
@@ -1650,34 +1035,23 @@ export default function SettingsScreen() {
               )
           )}
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             شكل الأيقونات
           </Text>
 
           {renderChoice(
             [
               {
-                key:
-                  "circle",
-                name:
-                  "دائرية",
+                key: "circle",
+                name: "دائرية",
               },
               {
-                key:
-                  "rounded",
-                name:
-                  "مستديرة",
+                key: "rounded",
+                name: "مستديرة",
               },
               {
-                key:
-                  "square",
-                name:
-                  "مربعة",
+                key: "square",
+                name: "مربعة",
               },
             ],
             settings.iconShape,
@@ -1688,34 +1062,23 @@ export default function SettingsScreen() {
               )
           )}
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             حجم الشعار
           </Text>
 
           {renderChoice(
             [
               {
-                key:
-                  "small",
-                name:
-                  "صغير",
+                key: "small",
+                name: "صغير",
               },
               {
-                key:
-                  "medium",
-                name:
-                  "متوسط",
+                key: "medium",
+                name: "متوسط",
               },
               {
-                key:
-                  "large",
-                name:
-                  "كبير",
+                key: "large",
+                name: "كبير",
               },
             ],
             settings.logoSize,
@@ -1726,7 +1089,6 @@ export default function SettingsScreen() {
               )
           )}
 
-
           {renderSwitch(
             "إظهار إطار حول الشعار",
             settings.logoBorder,
@@ -1736,26 +1098,15 @@ export default function SettingsScreen() {
                 value
               )
           )}
-
         </View>
-                {/* =================================
-            أسعار الفحوصات
-        ================================= */}
 
-        <View
-          style={
-            styles.section
-          }
-        >
-
-          <Text
-            style={
-              styles.sectionTitle
-            }
-          >
+        {/* =========================
+            الأسعار
+        ========================= */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
             💰 أسعار الفحوصات
           </Text>
-
 
           {renderSwitch(
             "تفعيل أسعار الفحوصات",
@@ -1767,28 +1118,15 @@ export default function SettingsScreen() {
               )
           )}
 
-
-          <Text
-            style={
-              styles.smallText
-            }
-          >
+          <Text style={styles.smallText}>
             يمكنك إضافة سعر لكل فحص
-            وسيتم حفظ الأسعار داخل
-            إعدادات المختبر.
+            وسيتم حفظه داخل إعدادات
+            المختبر.
           </Text>
 
-
-          <View
-            style={
-              styles.addRow
-            }
-          >
-
+          <View style={styles.addRow}>
             <TextInput
-              value={
-                newPriceTest
-              }
+              value={newPriceTest}
               onChangeText={
                 setNewPriceTest
               }
@@ -1799,11 +1137,8 @@ export default function SettingsScreen() {
               ]}
             />
 
-
             <TextInput
-              value={
-                newPriceValue
-              }
+              value={newPriceValue}
               onChangeText={
                 setNewPriceValue
               }
@@ -1815,75 +1150,43 @@ export default function SettingsScreen() {
               ]}
             />
 
-
             <TouchableOpacity
-              style={
-                styles.addButton
-              }
-              onPress={
-                addPrice
-              }
+              style={styles.addButton}
+              onPress={addPrice}
             >
-
               <Text
-                style={
-                  styles.addButtonText
-                }
+                style={styles.addButtonText}
               >
                 +
               </Text>
-
             </TouchableOpacity>
-
           </View>
 
-
-          {Object.keys(
-            prices
-          ).length === 0 ? (
-
+          {Object.keys(prices).length ===
+          0 ? (
             <Text
-              style={
-                styles.emptyText
-              }
+              style={styles.emptyText}
             >
-              لا توجد أسعار مضافة
-              حالياً.
+              لا توجد أسعار مضافة حالياً.
             </Text>
-
           ) : (
-
-            Object.entries(
-              prices
-            ).map(
-              ([
-                testName,
-                price,
-              ]) => (
-
+            Object.entries(prices).map(
+              ([testName, price]) => (
                 <View
-                  key={
-                    testName
-                  }
-                  style={
-                    styles.listRow
-                  }
+                  key={testName}
+                  style={styles.listRow}
                 >
-
                   <View
                     style={
                       styles.listRowText
                     }
                   >
-
                     <Text
                       style={
                         styles.listTitle
                       }
                     >
-                      {
-                        testName
-                      }
+                      {testName}
                     </Text>
 
                     <Text
@@ -1891,15 +1194,9 @@ export default function SettingsScreen() {
                         styles.listValue
                       }
                     >
-                      {
-                        String(
-                          price
-                        )
-                      }
+                      {String(price)}
                     </Text>
-
                   </View>
-
 
                   <TouchableOpacity
                     onPress={() =>
@@ -1911,7 +1208,6 @@ export default function SettingsScreen() {
                       styles.deleteSmall
                     }
                   >
-
                     <Text
                       style={
                         styles.deleteSmallText
@@ -1919,37 +1215,20 @@ export default function SettingsScreen() {
                     >
                       حذف
                     </Text>
-
                   </TouchableOpacity>
-
                 </View>
-
               )
             )
-
           )}
-
         </View>
 
-
-        {/* =================================
+        {/* =========================
             الحدود الحرجة
-        ================================= */}
-
-        <View
-          style={
-            styles.section
-          }
-        >
-
-          <Text
-            style={
-              styles.sectionTitle
-            }
-          >
+        ========================= */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
             🚨 الحدود الحرجة
           </Text>
-
 
           {renderSwitch(
             "تفعيل تنبيهات النتائج الحرجة",
@@ -1961,219 +1240,135 @@ export default function SettingsScreen() {
               )
           )}
 
-
-          <Text
-            style={
-              styles.smallText
-            }
-          >
+          <Text style={styles.smallText}>
             أدخل الحد الأدنى والأعلى
             للفحص ليتم استخدامهما
             لاحقاً في تنبيهات النتائج.
           </Text>
 
-
-          <View
-            style={
-              styles.addRangeRow
-            }
-          >
-
+          <View style={styles.addRangeRow}>
             <TextInput
-              value={
-                newRangeTest
-              }
+              value={newRangeTest}
               onChangeText={
                 setNewRangeTest
               }
               placeholder="اسم الفحص"
-              style={
-                styles.rangeTestInput
-              }
+              style={styles.rangeTestInput}
             />
 
-
             <TextInput
-              value={
-                newRangeLow
-              }
+              value={newRangeLow}
               onChangeText={
                 setNewRangeLow
               }
               placeholder="من"
               keyboardType="numeric"
-              style={
-                styles.rangeNumberInput
-              }
+              style={styles.rangeNumberInput}
             />
 
-
             <TextInput
-              value={
-                newRangeHigh
-              }
+              value={newRangeHigh}
               onChangeText={
                 setNewRangeHigh
               }
               placeholder="إلى"
               keyboardType="numeric"
-              style={
-                styles.rangeNumberInput
-              }
+              style={styles.rangeNumberInput}
             />
 
-
             <TouchableOpacity
-              style={
-                styles.addButton
-              }
+              style={styles.addButton}
               onPress={
                 addCriticalRange
               }
             >
-
               <Text
-                style={
-                  styles.addButtonText
-                }
+                style={styles.addButtonText}
               >
                 +
               </Text>
-
             </TouchableOpacity>
-
           </View>
-
 
           {Object.keys(
             criticalRanges
           ).length === 0 ? (
-
             <Text
-              style={
-                styles.emptyText
-              }
+              style={styles.emptyText}
             >
-              لا توجد حدود حرجة
-              مضافة حالياً.
+              لا توجد حدود حرجة مضافة
+              حالياً.
             </Text>
-
           ) : (
-
             Object.entries(
               criticalRanges
             ).map(
-              ([
-                testName,
-                range,
-              ]) => {
-
-                const item =
-                  range as any;
-
-                return (
-
+              ([testName, range]) => (
+                <View
+                  key={testName}
+                  style={styles.listRow}
+                >
                   <View
-                    key={
-                      testName
-                    }
                     style={
-                      styles.listRow
+                      styles.listRowText
                     }
                   >
-
-                    <View
+                    <Text
                       style={
-                        styles.listRowText
+                        styles.listTitle
                       }
                     >
+                      {testName}
+                    </Text>
 
-                      <Text
-                        style={
-                          styles.listTitle
-                        }
-                      >
-                        {
-                          testName
-                        }
-                      </Text>
-
-
-                      <Text
-                        style={
-                          styles.listValue
-                        }
-                      >
-                        من{" "}
-                        {
-                          String(
-                            item?.low ??
-                            ""
-                          )
-                        }{" "}
-                        إلى{" "}
-                        {
-                          String(
-                            item?.high ??
-                            ""
-                          )
-                        }
-                      </Text>
-
-                    </View>
-
-
-                    <TouchableOpacity
-                      onPress={() =>
-                        deleteCriticalRange(
-                          testName
-                        )
-                      }
+                    <Text
                       style={
-                        styles.deleteSmall
+                        styles.listValue
                       }
                     >
-
-                      <Text
-                        style={
-                          styles.deleteSmallText
-                        }
-                      >
-                        حذف
-                      </Text>
-
-                    </TouchableOpacity>
-
+                      {String(
+                        (range as any)
+                          ?.low ?? ""
+                      )}{" "}
+                      -{" "}
+                      {String(
+                        (range as any)
+                          ?.high ?? ""
+                      )}
+                    </Text>
                   </View>
 
-                );
-
-              }
+                  <TouchableOpacity
+                    onPress={() =>
+                      deleteCriticalRange(
+                        testName
+                      )
+                    }
+                    style={
+                      styles.deleteSmall
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.deleteSmallText
+                      }
+                    >
+                      حذف
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )
             )
-
           )}
-
         </View>
 
-
-        {/* =================================
+        {/* =========================
             الإحصائيات
-        ================================= */}
-
-        <View
-          style={
-            styles.section
-          }
-        >
-
-          <Text
-            style={
-              styles.sectionTitle
-            }
-          >
+        ========================= */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
             📊 الإحصائيات
           </Text>
-
 
           {renderSwitch(
             "إظهار الجنس في الإحصائيات",
@@ -2185,7 +1380,6 @@ export default function SettingsScreen() {
               )
           )}
 
-
           {renderSwitch(
             "إظهار الرسم البياني",
             settings.statsShowChart,
@@ -2196,7 +1390,6 @@ export default function SettingsScreen() {
               )
           )}
 
-
           {renderSwitch(
             "إظهار التفاصيل تلقائياً",
             settings.statsAutoDetails,
@@ -2206,57 +1399,33 @@ export default function SettingsScreen() {
                 value
               )
           )}
-
         </View>
 
-
-        {/* =================================
+        {/* =========================
             النسخ الاحتياطي التلقائي
-        ================================= */}
-
-        <View
-          style={
-            styles.section
-          }
-        >
-
-          <Text
-            style={
-              styles.sectionTitle
-            }
-          >
+        ========================= */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
             🔄 النسخ الاحتياطي التلقائي
           </Text>
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             طريقة النسخ التلقائي
           </Text>
-
 
           {renderChoice(
             [
               {
-                key:
-                  "off",
-                name:
-                  "متوقف",
+                key: "off",
+                name: "متوقف",
               },
               {
-                key:
-                  "daily",
-                name:
-                  "يومي",
+                key: "daily",
+                name: "يومي",
               },
               {
-                key:
-                  "weekly",
-                name:
-                  "أسبوعي",
+                key: "weekly",
+                name: "أسبوعي",
               },
             ],
             settings.autoDriveBackupMode,
@@ -2266,7 +1435,6 @@ export default function SettingsScreen() {
                 value
               )
           )}
-
 
           {renderNumberInput(
             "عدد النسخ المحتفظ بها",
@@ -2279,130 +1447,50 @@ export default function SettingsScreen() {
             1,
             20
           )}
-
         </View>
 
-
-        {/* =================================
+      =========================
             Google Drive
-        ================================= */}
-
-        <View
-          style={
-            styles.section
-          }
-        >
-
-          <Text
-            style={
-              styles.sectionTitle
-            }
-          >
+        ========================= */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
             ☁️ Google Drive
           </Text>
 
-
-          <View
-            style={
-              styles.driveBox
-            }
+          <Text
+            style={styles.driveStatusText}
           >
+            {driveUser
+              ? `الحساب: ${
+                  driveUser.email ||
+                  driveUser.name ||
+                  "تم تسجيل الدخول"
+                }`
+              : "غير مسجل الدخول"}
+          </Text>
 
-            <Text
-              style={
-                styles.driveStatusText
-              }
+          {driveUser ? (
+            <View
+              style={styles.buttonGroup}
             >
-              {
-                driveUser
-                  ? `الحساب: ${
-                      driveUser.email ||
-                      driveUser.name ||
-                      "تم تسجيل الدخول"
-                    }`
-                  : "غير مسجل الدخول"
-              }
-            </Text>
-
-
-            {driveLoading && (
-
-              <Text
-                style={
-                  styles.loadingText
-                }
-              >
-                جارٍ تنفيذ العملية...
-              </Text>
-
-            )}
-
-          </View>
-
-
-          {!driveUser ? (
-
-            <TouchableOpacity
-              style={
-                styles.primaryButton
-              }
-              onPress={
-                signIn
-              }
-              disabled={
-                driveLoading
-              }
-            >
-
-              <Text
-                style={
-                  styles.primaryButtonText
-                }
-              >
-                🔑 تسجيل الدخول بحساب Google
-              </Text>
-
-            </TouchableOpacity>
-
-          ) : (
-
-            <>
-
               <TouchableOpacity
-                style={
-                  styles.primaryButton
-                }
-                onPress={
-                  driveBackup
-                }
-                disabled={
-                  driveLoading
-                }
+                style={styles.primaryButton}
+                onPress={driveBackup}
               >
-
                 <Text
                   style={
                     styles.primaryButtonText
                   }
                 >
-                  ☁️ نسخ احتياطي إلى Google Drive
+                  ☁️ نسخ احتياطي إلى Google
+                  Drive
                 </Text>
-
               </TouchableOpacity>
 
-
               <TouchableOpacity
-                style={
-                  styles.secondaryButton
-                }
-                onPress={
-                  driveRestore
-                }
-                disabled={
-                  driveLoading
-                }
+                style={styles.secondaryButton}
+                onPress={driveRestore}
               >
-
                 <Text
                   style={
                     styles.secondaryButtonText
@@ -2410,101 +1498,67 @@ export default function SettingsScreen() {
                 >
                   ♻️ استعادة من Google Drive
                 </Text>
-
               </TouchableOpacity>
 
-
               <TouchableOpacity
-                style={
-                  styles.dangerButton
-                }
-                onPress={
-                  signOut
-                }
-                disabled={
-                  driveLoading
-                }
+                style={styles.dangerButton}
+                onPress={signOut}
               >
-
                 <Text
-                  style={
-                    styles.dangerText
-                  }
+                  style={styles.dangerText}
                 >
                   تسجيل الخروج من Google
                 </Text>
-
               </TouchableOpacity>
-
-            </>
-
-          )}
-
-
-          {driveSummary ? (
-
-            <View
-              style={
-                styles.infoBox
-              }
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={signIn}
             >
-
               <Text
                 style={
-                  styles.infoText
+                  styles.primaryButtonText
                 }
               >
-                {
-                  driveSummary
-                }
+                🔑 تسجيل الدخول بحساب Google
               </Text>
+            </TouchableOpacity>
+          )}
 
+          {driveSummary ? (
+            <View
+              style={styles.infoBox}
+            >
+              <Text
+                style={styles.infoText}
+              >
+                {driveSummary}
+              </Text>
             </View>
-
           ) : null}
-
         </View>
 
-
-        {/* =================================
-            النسخ الاحتياطي المحلي
-        ================================= */}
-
-        <View
-          style={
-            styles.section
-          }
-        >
-
-          <Text
-            style={
-              styles.sectionTitle
-            }
-          >
+        {/* =========================
+            النسخ المحلي
+        ========================= */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
             💾 النسخ الاحتياطي المحلي
           </Text>
 
-
           <Text
-            style={
-              styles.smallText
-            }
+            style={styles.smallText}
           >
             احفظ نسخة كاملة من بيانات
-            المختبر على الجهاز أو
-            استورد نسخة سابقة.
+            المختبر على الجهاز أو استورد
+            نسخة سابقة.
           </Text>
 
-
           <TouchableOpacity
-            style={
-              styles.primaryButton
-            }
-            onPress={
-              backup
-            }
+            style={styles.primaryButton}
+            onPress={backup}
           >
-
             <Text
               style={
                 styles.primaryButtonText
@@ -2512,19 +1566,12 @@ export default function SettingsScreen() {
             >
               💾 إنشاء نسخة احتياطية
             </Text>
-
           </TouchableOpacity>
 
-
           <TouchableOpacity
-            style={
-              styles.secondaryButton
-            }
-            onPress={
-              importFile
-            }
+            style={styles.secondaryButton}
+            onPress={importFile}
           >
-
             <Text
               style={
                 styles.secondaryButtonText
@@ -2532,154 +1579,96 @@ export default function SettingsScreen() {
             >
               📥 استيراد نسخة احتياطية
             </Text>
-
           </TouchableOpacity>
-
         </View>
 
-
-        {/* =================================
-            إعدادات الطباعة
-        ================================= */}
-
-        <View
-          style={
-            styles.section
-          }
-        >
-
-          <Text
-            style={
-              styles.sectionTitle
-            }
-          >
+        {/* =========================
+            بداية إعدادات الطباعة
+        ========================= */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
             🖨️ إعدادات الطباعة والتقارير
           </Text>
 
-
           <Text
-            style={
-              styles.smallText
-            }
+            style={styles.smallText}
           >
-            تحكم بشكل التقرير وحجم
-            الورق والخط والهوامش
-            والعناصر التي تظهر أثناء
-            الطباعة.
+            هذه الإعدادات تحفظ شكل
+            التقارير ليتم تطبيقها على
+            التقارير المطبوعة لاحقاً.
           </Text>
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             حجم الورق
           </Text>
 
-
           {renderChoice(
-            PAPER_OPTIONS.map(
-              (item) => ({
-                key:
-                  item.key,
-                name:
-                  item.name,
-              })
-            ),
+            PAPER_OPTIONS.map((item) => ({
+              key: item.key,
+              name: item.name,
+            })),
             settings.printSettings.paper,
             (value) =>
               updatePrint({
-                paper:
-                  value,
+                paper: value,
               })
           )}
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             اتجاه الصفحة
           </Text>
-
 
           {renderChoice(
             [
               {
-                key:
-                  "portrait",
-                name:
-                  "عمودي",
+                key: "portrait",
+                name: "عمودي",
               },
               {
-                key:
-                  "landscape",
-                name:
-                  "أفقي",
+                key: "landscape",
+                name: "أفقي",
               },
             ],
             settings.printSettings
               .orientation,
             (value) =>
               updatePrint({
-                orientation:
-                  value,
+                orientation: value,
               })
           )}
 
-
-          <Text
-            style={
-              styles.inputLabel
-            }
-          >
+          <Text style={styles.inputLabel}>
             تخطيط التقارير
           </Text>
 
-
           {renderChoice(
-            PRINT_LAYOUTS.map(
-              (item) => ({
-                key:
-                  item.key,
-                name:
-                  item.name,
-              })
-            ),
-            settings.printSettings
-              .layout,
+            PRINT_LAYOUTS.map((item) => ({
+              key: item.key,
+              name: item.name,
+            })),
+            settings.printSettings.layout,
             (value) =>
               updatePrint({
-                layout:
-                  value,
+                layout: value,
               })
           )}
 
-
           {renderNumberInput(
             "المسافة بين التقارير",
-            settings.printSettings
-              .gap,
+            settings.printSettings.gap,
             (value) =>
               updatePrint({
-                gap:
-                  value,
+                gap: value,
               }),
             0,
             30
           )}
 
-
           <Text
-            style={
-              styles.subSectionTitle
-            }
+            style={styles.subSectionTitle}
           >
             الهوامش
           </Text>
-
 
           {renderNumberInput(
             "الهامش العلوي",
@@ -2687,13 +1676,11 @@ export default function SettingsScreen() {
               .marginTop,
             (value) =>
               updatePrint({
-                marginTop:
-                  value,
+                marginTop: value,
               }),
             0,
             50
           )}
-
 
           {renderNumberInput(
             "الهامش الأيمن",
@@ -2701,13 +1688,11 @@ export default function SettingsScreen() {
               .marginRight,
             (value) =>
               updatePrint({
-                marginRight:
-                  value,
+                marginRight: value,
               }),
             0,
             50
           )}
-
 
           {renderNumberInput(
             "الهامش السفلي",
@@ -2715,13 +1700,11 @@ export default function SettingsScreen() {
               .marginBottom,
             (value) =>
               updatePrint({
-                marginBottom:
-                  value,
+                marginBottom: value,
               }),
             0,
             50
           )}
-
 
           {renderNumberInput(
             "الهامش الأيسر",
@@ -2729,15 +1712,14 @@ export default function SettingsScreen() {
               .marginLeft,
             (value) =>
               updatePrint({
-                marginLeft:
-                  value,
+                marginLeft: value,
               }),
             0,
             50
           )}
 
         </View>
-                {/* =================================
+        {/* =================================
             إعدادات الطباعة - الخط والتقرير
         ================================= */}
 
@@ -3456,7 +2438,7 @@ export default function SettingsScreen() {
 
   );
 
-      }const styles = StyleSheet.create({
+}const styles = StyleSheet.create({
 
   /* =====================================
      الصفحة
