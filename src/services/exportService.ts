@@ -2157,4 +2157,4 @@ export const printStats =
     await Print.printAsync({
       html,
     });
-  };};
+  };
