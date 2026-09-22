@@ -25,6 +25,10 @@
       ]
     ],
 
+    "experiments": {
+      "baseUrl": "/MedicalLabReactNative"
+    },
+
     "extra": {
       "eas": {
         "projectId": "c9cc337d-0ac3-4839-b42d-9d2be8387c56"
