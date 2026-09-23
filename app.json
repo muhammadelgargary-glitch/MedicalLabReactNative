@@ -1,24 +1,4 @@
 {
-  "expo": {
-    "name": "MedicalLabReactNative",
-    "slug": "MedicalLabReactNative",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#ffffff"
-      }
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "single"
-    },
-    "experiments": {
-      "baseUrl": "/MedicalLabReactNative"
-    }
-  }
+  "name": "MedicalLabReactNative",
+  "displayName": "MedicalLabReactNative"
 }
