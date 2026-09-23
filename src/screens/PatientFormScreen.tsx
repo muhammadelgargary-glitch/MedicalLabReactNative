@@ -1,422 +1,444 @@
-import React, {useEffect, useState} from 'react';
+// src/screens/PatientFormScreen.tsx - نموذج المريض احترافي
+
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   View,
   Text,
+  StyleSheet,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
+  Switch,
+  SafeAreaView,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { useLabStore, Patient } from '../store/useLabStore';
+import { createTheme } from '../styles/theme';
+import { getColors } from '../styles/colors';
+import { SPACING, BORDER_RADIUS, SHADOWS, FLEX_CENTERS } from '../styles/spacing';
+import ThemedButton from '../components/ThemedButton';
+import { v4 as uuidv4 } from 'uuid';
 
-import {useLabStore} from '../store/useLabStore';
-import {
-  emptySectionData,
-  SECTION_KEYS,
-  TEST_SECTIONS,
-  SectionKey,
-} from '../utils/constants';
-import {todayISO} from '../utils/helpers';
-import SectionCard from '../components/SectionCard';
-import {getTheme} from '../utils/theme';
-
-export default function PatientFormScreen({route, navigation}: any) {
-  const {patients, upsertPatient} = useLabStore();
-  const settings = useLabStore(s => s.settings);
-  const theme = getTheme(settings);
-
-  const existing = patients.find(
-    p => p.id === route.params?.id
-  );
-
-  const [p, setP] = useState<any>(
-    existing || {
-      ...emptySectionData(),
-      name: '',
-      seq: '',
-      age: '',
-      gender: 'ذكر',
-      date: todayISO(),
-      notes: '',
-    }
-  );
-
-  const [active, setActive] = useState<SectionKey[]>(
-    SECTION_KEYS.filter(k => p[`include${k}`])
-  );
-
-  // عند فتح سجل موجود
-  useEffect(() => {
-    if (existing) {
-      setP(existing);
-
-      setActive(
-        SECTION_KEYS.filter(k => existing[`include${k}`])
-      );
-    }
-  }, [existing?.id]);
-
-  const toggle = (k: SectionKey) => {
-    const on = !p[`include${k}`];
-
-    setP({
-      ...p,
-      [`include${k}`]: on,
-    });
-
-    setActive(current =>
-      on
-        ? current.includes(k)
-          ? current
-          : [...current, k]
-        : current.filter(x => x !== k)
-    );
+interface PatientFormScreenProps {
+  route: {
+    params?: {
+      id?: string;
+    };
   };
+  navigation: any;
+}
 
-  const save = async () => {
-    if (!String(p.name || '').trim()) {
-      Alert.alert('تنبيه', 'أدخل اسم المريض');
+export default function PatientFormScreen({ route, navigation }: PatientFormScreenProps) {
+  const patientId = route.params?.id;
+  const patients = useLabStore((s) => s.patients);
+  const addPatient = useLabStore((s) => s.addPatient);
+  const updatePatient = useLabStore((s) => s.updatePatient);
+  const isDark = useLabStore((s) => s.darkMode);
+  const themeType = useLabStore((s) => s.theme);
+
+  const [loading, setLoading] = useState(false);
+  const [name, setName] = useState('');
+  const [seq, setSeq] = useState('');
+  const [gender, setGender] = useState('ذكر');
+  const [age, setAge] = useState('');
+  const [notes, setNotes] = useState('');
+  const [includeBlood, setIncludeBlood] = useState(false);
+  const [includeChem, setIncludeChem] = useState(false);
+  const [includeUrine, setIncludeUrine] = useState(false);
+  const [includeSerology, setIncludeSerology] = useState(false);
+  const [includeStool, setIncludeStool] = useState(false);
+  const [includePreg, setIncludePreg] = useState(false);
+
+  const colors = getColors(isDark, themeType);
+  const styles = createStyles(colors);
+
+  useEffect(() => {
+    if (patientId) {
+      const patient = patients.find((p) => p.id === patientId);
+      if (patient) {
+        setName(patient.name);
+        setSeq(patient.seq);
+        setGender(patient.gender);
+        setAge(patient.age);
+        setNotes(patient.notes || '');
+        setIncludeBlood(patient.includeBlood);
+        setIncludeChem(patient.includeChem);
+        setIncludeUrine(patient.includeUrine);
+        setIncludeSerology(patient.includeSerology);
+        setIncludeStool(patient.includeStool);
+        setIncludePreg(patient.includePreg);
+      }
+    }
+  }, [patientId]);
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !seq.trim() || !age.trim()) {
+      Alert.alert('تحذير', 'يرجى ملء جميع البيانات المطلوبة');
+      return;
+    }
+
+    if (!includeBlood && !includeChem && !includeUrine && !includeSerology && !includeStool && !includePreg) {
+      Alert.alert('تحذير', 'يرجى تحديد نوع فحص واحد على الأقل');
       return;
     }
 
     try {
-      await upsertPatient({
-        ...p,
-        name: String(p.name).trim(),
-        age: String(p.age || '').trim(),
-        gender: String(p.gender || '').trim(),
-        date: String(p.date || todayISO()).trim(),
-        notes: String(p.notes || '').trim(),
-      });
+      setLoading(true);
 
-      Alert.alert('تم الحفظ', 'تم حفظ سجل المريض بنجاح', [
-        {
-          text: 'موافق',
-          onPress: () => navigation.goBack(),
-        },
-      ]);
-    } catch (error) {
-      console.error('Patient save error:', error);
+      if (patientId) {
+        await updatePatient(patientId, {
+          name,
+          seq,
+          gender,
+          age,
+          notes,
+          includeBlood,
+          includeChem,
+          includeUrine,
+          includeSerology,
+          includeStool,
+          includePreg,
+        });
+        Alert.alert('نجاح', 'تم تحديث بيانات المريض');
+      } else {
+        const newPatient: Patient = {
+          id: uuidv4(),
+          name,
+          seq,
+          gender,
+          age,
+          date: new Date().toISOString().split('T')[0],
+          notes,
+          blood: {},
+          chem: {},
+          urine: {},
+          serology: {},
+          stool: {},
+          preg: {},
+          includeBlood,
+          includeChem,
+          includeUrine,
+          includeSerology,
+          includeStool,
+          includePreg,
+        };
+        await addPatient(newPatient);
+        Alert.alert('نجاح', 'تم إضافة المريض بنجاح');
+      }
 
-      Alert.alert(
-        'خطأ',
-        'حدث خطأ أثناء حفظ سجل المريض'
-      );
+      navigation.goBack();
+    } catch (error: any) {
+      Alert.alert('خطأ', error.message || 'حدث خطأ أثناء حفظ البيانات');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const testTypes = [
+    { id: 'blood', label: 'فحوصات الدم', icon: '🩸', value: includeBlood, setter: setIncludeBlood },
+    { id: 'chem', label: 'كيمياء الدم', icon: '🧬', value: includeChem, setter: setIncludeChem },
+    { id: 'urine', label: 'تحليل البول', icon: '💧', value: includeUrine, setter: setIncludeUrine },
+    { id: 'serology', label: 'الأمصال', icon: '🧪', value: includeSerology, setter: setIncludeSerology },
+    { id: 'stool', label: 'تحليل البراز', icon: '🪳', value: includeStool, setter: setIncludeStool },
+    { id: 'preg', label: 'اختبار الحمل', icon: '🤰', value: includePreg, setter: setIncludePreg },
+  ];
+
   return (
-    <ScrollView
-      style={[styles.root, {backgroundColor: theme.background}]}
-      contentContainerStyle={{
-        padding: 12,
-        paddingBottom: 40,
-      }}
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* بيانات المريض */}
-      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
-        <Text style={[styles.title, {color: theme.primary}]}>بيانات المريض</Text>
-
-        <Input
-          label="اسم المريض الكامل *"
-          value={p.name}
-          placeholder="أدخل اسم المريض"
-          onChangeText={(v: string) =>
-            setP({...p, name: v})
-          }
-        />
-
-        <View style={styles.row}>
-          <Input
-            label="رقم السجل"
-            value={p.seq}
-            placeholder="تلقائي"
-            editable={false}
-            flex
-            onChangeText={(v: string) =>
-              setP({...p, seq: v})
-            }
-          />
-
-          <Input
-            label="العمر"
-            value={p.age}
-            placeholder="العمر"
-            keyboardType="numeric"
-            flex
-            onChangeText={(v: string) =>
-              setP({...p, age: v})
-            }
-          />
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}
+      >
+        {/* ===== HEADER ===== */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>
+            {patientId ? '✏️ تعديل المريض' : '➕ إضافة مريض جديد'}
+          </Text>
         </View>
 
-        <View style={styles.row}>
-          <Input
-            label="الجنس"
-            value={p.gender}
-            placeholder="الجنس"
-            flex
-            onChangeText={(v: string) =>
-              setP({...p, gender: v})
-            }
-          />
+        {/* ===== PERSONAL INFO ===== */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>👤 البيانات الشخصية</Text>
 
-          <Input
-            label="التاريخ YYYY-MM-DD"
-            value={p.date}
-            placeholder="YYYY-MM-DD"
-            flex
-            onChangeText={(v: string) =>
-              setP({...p, date: v})
-            }
-          />
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>اسم المريض *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="أدخل اسم المريض"
+              placeholderTextColor={colors.inkSub}
+              value={name}
+              onChangeText={setName}
+            />
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.formGroup, { flex: 1 }]}>
+              <Text style={styles.label}>رقم السجل *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="رقم السجل"
+                placeholderTextColor={colors.inkSub}
+                value={seq}
+                onChangeText={setSeq}
+              />
+            </View>
+
+            <View style={[styles.formGroup, { flex: 1, marginLeft: SPACING[2] }]}>
+              <Text style={styles.label}>العمر *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="العمر"
+                placeholderTextColor={colors.inkSub}
+                value={age}
+                onChangeText={setAge}
+                keyboardType="numeric"
+              />
+            </View>
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>النوع</Text>
+            <View style={styles.genderButtons}>
+              {['ذكر', 'أنثى'].map((g) => (
+                <TouchableOpacity
+                  key={g}
+                  style={[
+                    styles.genderButton,
+                    gender === g && styles.genderButtonActive,
+                  ]}
+                  onPress={() => setGender(g)}
+                >
+                  <Text
+                    style={[
+                      styles.genderButtonText,
+                      gender === g && styles.genderButtonTextActive,
+                    ]}
+                  >
+                    {g === 'ذكر' ? '♂️ ذكر' : '♀️ أنثى'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         </View>
 
-        <Input
-          label="ملاحظات"
-          value={p.notes}
-          placeholder="أدخل أي ملاحظات..."
-          multiline
-          numberOfLines={4}
-          onChangeText={(v: string) =>
-            setP({...p, notes: v})
-          }
-        />
-      </View>
+        {/* ===== TEST TYPES ===== */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🧪 اختر الفحوصات المطلوبة</Text>
+          <Text style={styles.sectionDescription}>تحديد واحد على الأقل مطلوب</Text>
 
-      {/* اختيار الأقسام */}
-      <View style={[styles.card, {backgroundColor: theme.surface, borderColor: theme.border}]}>
-        <Text style={[styles.title, {color: theme.primary}]}>
-          اختيار أقسام الفحوصات
-        </Text>
-
-        <Text style={styles.helper}>
-          اختر الأقسام التي تريد إدخال نتائجها للمريض
-        </Text>
-
-        <View style={styles.chips}>
-          {SECTION_KEYS.map(k => {
-            const selected = !!p[`include${k}`];
-
-            return (
+          <View style={styles.testTypesGrid}>
+            {testTypes.map((test) => (
               <TouchableOpacity
-                key={k}
-                activeOpacity={0.8}
-                onPress={() => toggle(k)}
+                key={test.id}
                 style={[
-                  styles.chip,
-                  selected && styles.chipOn,
+                  styles.testTypeButton,
+                  test.value && styles.testTypeButtonActive,
                 ]}
+                onPress={() => test.setter(!test.value)}
               >
+                <Text style={styles.testTypeIcon}>{test.icon}</Text>
                 <Text
                   style={[
-                    styles.chipText,
-                    selected && styles.chipTextOn,
+                    styles.testTypeLabel,
+                    test.value && styles.testTypeLabelActive,
                   ]}
                 >
-                  {TEST_SECTIONS[k].icon}{' '}
-                  {TEST_SECTIONS[k].label}
+                  {test.label}
                 </Text>
+                {test.value && <Text style={styles.checkmark}>✓</Text>}
               </TouchableOpacity>
-            );
-          })}
+            ))}
+          </View>
         </View>
-      </View>
 
-      {/* أقسام الفحوصات */}
-      {active.map(k => (
-        <SectionCard
-          key={k}
-          section={k}
-          value={
-            p[TEST_SECTIONS[k].dataKey] || {}
-          }
-          onChange={v =>
-            setP({
-              ...p,
-              [TEST_SECTIONS[k].dataKey]: v,
-            })
-          }
-        />
-      ))}
+        {/* ===== NOTES ===== */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📝 ملاحظات</Text>
 
-      {/* الحفظ */}
-      <TouchableOpacity
-        style={styles.save}
-        activeOpacity={0.85}
-        onPress={save}
-      >
-        <Text style={styles.saveText}>
-          💾 حفظ السجل
-        </Text>
-      </TouchableOpacity>
-    </ScrollView>
+          <TextInput
+            style={[styles.input, styles.notesInput]}
+            placeholder="أضف ملاحظات إضافية..."
+            placeholderTextColor={colors.inkSub}
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
+        </View>
+
+        {/* ===== ACTIONS ===== */}
+        <View style={styles.section}>
+          <ThemedButton
+            title={patientId ? '✏️ تحديث المريض' : '➕ إضافة المريض'}
+            variant="primary"
+            size="lg"
+            loading={loading}
+            onPress={handleSubmit}
+          />
+
+          <ThemedButton
+            title="إلغاء"
+            variant="secondary"
+            size="lg"
+            style={{ marginTop: SPACING[2] }}
+            onPress={() => navigation.goBack()}
+          />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-function Input({
-  label,
-  value,
-  onChangeText,
-  flex,
-  editable = true,
-  placeholder,
-  keyboardType = 'default',
-  multiline = false,
-  numberOfLines,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  flex?: boolean;
-  editable?: boolean;
-  placeholder?: string;
-  keyboardType?: any;
-  multiline?: boolean;
-  numberOfLines?: number;
-}) {
-  const settings = useLabStore(s => s.settings);
-  const theme = getTheme(settings);
-  return (
-    <View
-      style={{
-        flex: flex ? 1 : undefined,
-        marginBottom: 10,
-      }}
-    >
-      <Text style={[styles.label, {color: theme.text}]}>
-        {label}
-      </Text>
+// ===== STYLES =====
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.paper,
+    },
+    contentContainer: {
+      paddingBottom: SPACING[8],
+    },
 
-      <TextInput
-        value={value ?? ''}
-        onChangeText={onChangeText}
-        editable={editable}
-        placeholder={placeholder}
-        placeholderTextColor={theme.muted}
-        keyboardType={keyboardType}
-        multiline={multiline}
-        numberOfLines={numberOfLines}
-        textAlign="right"
-        textAlignVertical={
-          multiline ? 'top' : 'center'
-        }
-        style={[
-          styles.input,
-          {backgroundColor: theme.input, borderColor: theme.border, color: theme.text},
-          multiline && styles.multilineInput,
-          !editable && styles.disabledInput,
-        ]}
-      />
-    </View>
-  );
-}
+    // ===== Header =====
+    header: {
+      backgroundColor: colors.headerBg,
+      paddingHorizontal: SPACING[4],
+      paddingVertical: SPACING[4],
+      marginBottom: SPACING[4],
+    },
+    headerTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: colors.headerText,
+      fontFamily: 'Tajawal-Bold',
+    },
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#f4f7f6',
-  },
+    // ===== Section =====
+    section: {
+      paddingHorizontal: SPACING[4],
+      marginBottom: SPACING[4],
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.navy,
+      marginBottom: SPACING[2],
+      fontFamily: 'Tajawal-Bold',
+    },
+    sectionDescription: {
+      fontSize: 12,
+      color: colors.inkSub,
+      marginBottom: SPACING[3],
+      fontFamily: 'Tajawal',
+    },
 
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e0e6e3',
-  },
+    // ===== Form =====
+    formGroup: {
+      marginBottom: SPACING[4],
+    },
+    row: {
+      flexDirection: 'row',
+      marginBottom: SPACING[4],
+    },
+    label: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.ink,
+      marginBottom: SPACING[1],
+      fontFamily: 'Tajawal-Bold',
+    },
+    input: {
+      backgroundColor: colors.panel,
+      borderWidth: 1,
+      borderColor: colors.line,
+      borderRadius: BORDER_RADIUS.md,
+      paddingHorizontal: SPACING[3],
+      paddingVertical: SPACING[2],
+      color: colors.ink,
+      fontSize: 14,
+      textAlign: 'right',
+      fontFamily: 'Tajawal',
+    },
+    notesInput: {
+      minHeight: 100,
+      textAlign: 'right',
+      textAlignVertical: 'top',
+    },
 
-  title: {
-    fontSize: 19,
-    fontWeight: '900',
-    color: '#1d3b36',
-    textAlign: 'right',
-    marginBottom: 12,
-  },
+    // ===== Gender Buttons =====
+    genderButtons: {
+      flexDirection: 'row',
+      gap: SPACING[2],
+    },
+    genderButton: {
+      flex: 1,
+      paddingVertical: SPACING[2],
+      borderRadius: BORDER_RADIUS.md,
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.panel,
+      ...FLEX_CENTERS.center,
+    },
+    genderButtonActive: {
+      backgroundColor: colors.seal,
+      borderColor: colors.seal,
+    },
+    genderButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.ink,
+      fontFamily: 'Tajawal',
+    },
+    genderButtonTextActive: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
 
-  helper: {
-    textAlign: 'right',
-    color: '#777',
-    fontSize: 13,
-    marginBottom: 10,
-  },
-
-  label: {
-    fontWeight: '700',
-    textAlign: 'right',
-    marginBottom: 5,
-    color: '#33413d',
-  },
-
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccd6d2',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    textAlign: 'right',
-    backgroundColor: '#fafcfc',
-    color: '#222',
-    minHeight: 44,
-  },
-
-  multilineInput: {
-    minHeight: 100,
-    paddingTop: 12,
-  },
-
-  disabledInput: {
-    backgroundColor: '#eef2f0',
-    color: '#777',
-  },
-
-  row: {
-    flexDirection: 'row-reverse',
-    gap: 10,
-  },
-
-  chips: {
-    flexDirection: 'row-reverse',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-
-  chip: {
-    borderWidth: 1,
-    borderColor: '#ccd6d2',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    backgroundColor: '#fff',
-  },
-
-  chipOn: {
-    backgroundColor: '#1d3b36',
-    borderColor: '#1d3b36',
-  },
-
-  chipText: {
-    color: '#33413d',
-    fontWeight: '700',
-  },
-
-  chipTextOn: {
-    color: '#fff',
-  },
-
-  save: {
-    backgroundColor: '#1d3b36',
-    padding: 15,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 2,
-  },
-
-  saveText: {
-    color: '#fff',
-    fontSize: 17,
-    fontWeight: '900',
-  },
-});
+    // ===== Test Types Grid =====
+    testTypesGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: SPACING[2],
+    },
+    testTypeButton: {
+      width: '48%',
+      paddingVertical: SPACING[3],
+      paddingHorizontal: SPACING[2],
+      borderRadius: BORDER_RADIUS.lg,
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.panel,
+      alignItems: 'center',
+      gap: SPACING[1],
+    },
+    testTypeButtonActive: {
+      backgroundColor: colors.seal,
+      borderColor: colors.seal,
+    },
+    testTypeIcon: {
+      fontSize: 24,
+    },
+    testTypeLabel: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.ink,
+      textAlign: 'center',
+      fontFamily: 'Tajawal',
+    },
+    testTypeLabelActive: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+    },
+    checkmark: {
+      position: 'absolute',
+      top: SPACING[2],
+      right: SPACING[2],
+      fontSize: 20,
+      color: '#FFFFFF',
+    },
+  });
+ 
