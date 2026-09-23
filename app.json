@@ -1,43 +1,33 @@
 {
   "expo": {
-    "name": "سجل المختبر الطبي",
-    "slug": "medicallabreactnative",
-    "owner": "an7mds-team",
+    "name": "MedicalLabReactNative",
+    "slug": "MedicalLabReactNative",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
-    "scheme": "medicallab",
-
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
     "android": {
-      "package": "com.medical.lab",
       "adaptiveIcon": {
-        "backgroundColor": "#1d3b36"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
       }
     },
-
-    "plugins": [
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.302676179340-4e6res67d3sbf7ftg1mr7fqi3i409kt4"
-        }
-      ],
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#1d3b36"
-        }
-      ]
-    ],
-
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "static"
+    },
     "experiments": {
       "baseUrl": "/MedicalLabReactNative"
-    },
-
-    "extra": {
-      "eas": {
-        "projectId": "c9cc337d-0ac3-4839-b42d-9d2be8387c56"
-      }
     }
   }
-} 
+}
+ 
