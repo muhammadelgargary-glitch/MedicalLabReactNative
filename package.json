@@ -38,10 +38,7 @@
     "@types/react": "~18.2.79",
     "@types/react-native": "~0.73.0",
     "typescript": "~5.3.3"
-  }
-}
-export const REQUIRED_PACKAGES = `
-{
+  },
   "dependencies": {
     "react-native": "0.74.5",
     "expo": "51.0.0",
