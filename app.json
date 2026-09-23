@@ -1,4 +1,18 @@
 {
-  "name": "MedicalLabReactNative",
-  "displayName": "MedicalLabReactNative"
+  "expo": {
+    "name": "سجل المختبر الطبي",
+    "slug": "medical-lab-react-native",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.medical.lab",
+      "adaptiveIcon": {
+        "backgroundColor": "#1d3b36"
+      }
+    },
+    "plugins": [
+      "@react-native-google-signin/google-signin"
+    ]
+  }
 }
