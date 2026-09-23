@@ -1,3 +1,12 @@
+import * as Font from 'expo-font';
+import { useLabStore } from './src/store/useLabStore';
+
+// في useEffect:
+await Font.loadAsync({
+  'Tajawal': require('./assets/fonts/Tajawal-Regular.ttf'),
+  'Tajawal-Bold': require('./assets/fonts/Tajawal-Bold.ttf'),
+});
+await loadFromStorage();
 import React, { useEffect } from 'react';
 import {
   ActivityIndicator,
