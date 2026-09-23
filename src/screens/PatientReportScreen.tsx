@@ -1,109 +1,476 @@
-import React from 'react';
-import {ScrollView, View, Text, StyleSheet, TouchableOpacity, Image} from 'react-native';
-import {useLabStore} from '../store/useLabStore';
-import {TEST_SECTIONS, SECTION_KEYS} from '../utils/constants';
-import {exportPatientPdf, printPatient} from '../services/exportService';
-import {displayDate} from '../utils/helpers';
-import {getTheme} from '../utils/theme';
+// src/screens/PatientReportScreen.tsx - إعادة تصميم كامل
 
-export default function PatientReportScreen({route}: any) {
-  const patient = useLabStore(s => s.patients.find(x => x.id === route.params?.id));
-  const settings = useLabStore(s => s.settings);
-  const theme = getTheme(settings);
-  const ps = settings.printSettings || ({} as any);
+import React, { useState } from 'react';
+import {
+  ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
+import { useLabStore, Patient } from '../store/useLabStore';
+import { TEST_SECTIONS, SECTION_KEYS, SectionKey } from '../utils/constants';
+import { exportPatientPdf, printPatient } from '../services/exportService';
+import { displayDate } from '../utils/helpers';
+import { createTheme } from '../styles/theme';
+import { getColors, TAG_COLORS } from '../styles/colors';
+import { SPACING, BORDER_RADIUS, SHADOWS } from '../styles/spacing';
+
+interface PatientReportScreenProps {
+  route: {
+    params?: {
+      id?: string;
+    };
+  };
+}
+
+export default function PatientReportScreen({ route }: PatientReportScreenProps) {
+  const patientId = route.params?.id;
+  const patients = useLabStore((s) => s.patients);
+  const settings = useLabStore((s) => s.settings);
+  const isDark = useLabStore((s) => s.darkMode);
+  const themeType = useLabStore((s) => s.theme);
+
+  const patient = patients.find((p) => p.id === patientId);
+  const [loadingPDF, setLoadingPDF] = useState(false);
+  const [loadingPrint, setLoadingPrint] = useState(false);
+
+  const colors = getColors(isDark, themeType);
+  const theme = createTheme(isDark, themeType);
+  const styles = createStyles(colors);
 
   if (!patient) {
-    return <View style={[styles.empty, {backgroundColor: theme.background}]}><Text style={[styles.emptyText, {color: theme.text}]}>السجل غير موجود</Text></View>;
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.errorText}>السجل غير موجود</Text>
+      </View>
+    );
   }
 
-  const activeSections = SECTION_KEYS.filter(k => patient[`include${k}`]);
+  const handleExportPDF = async () => {
+    try {
+      setLoadingPDF(true);
+      await exportPatientPdf(patient, settings, settings.printSettings || {});
+      Alert.alert('تم', 'تم إنشاء ومشاركة ملف PDF بنجاح');
+    } catch (error: any) {
+      Alert.alert('خطأ', error.message || 'فشل إنشاء الـ PDF');
+    } finally {
+      setLoadingPDF(false);
+    }
+  };
+
+  const handlePrint = async () => {
+    try {
+      setLoadingPrint(true);
+      await printPatient(patient, settings, settings.printSettings || {});
+      Alert.alert('تم', 'تم إرسال التقرير للطابعة');
+    } catch (error: any) {
+      Alert.alert('خطأ', error.message || 'فشل الطباعة');
+    } finally {
+      setLoadingPrint(false);
+    }
+  };
+
+  const getActiveSections = () => {
+    return SECTION_KEYS.filter((k) => patient[`include${k}`]);
+  };
 
   return (
-    <ScrollView style={[styles.root, {backgroundColor: theme.background}]} contentContainerStyle={styles.content}>
-      <View style={[styles.toolbar, {backgroundColor: theme.surface, borderColor: theme.border}]}>
-        <View>
-          <Text style={[styles.toolbarTitle, {color: theme.text}]}>معاينة ورقة الفحص</Text>
-          <Text style={[styles.toolbarSub, {color: theme.muted}]}>تقرير مخبري منظم وجاهز للطباعة</Text>
-        </View>
-        <View style={[styles.seqPill, {backgroundColor: theme.primary}]}><Text style={styles.seqText}>{patient.seq || '—'}</Text></View>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* ===== HEADER SECTION ===== */}
+      <View style={styles.headerSection}>
+        <Text style={styles.headerTitle}>{settings.center || 'مختبري'}</Text>
+        <Text style={styles.headerSubtitle}>
+          {settings.directorate || 'الإدارة'}
+        </Text>
+
+        <View style={styles.divider} />
+
+        <Text style={styles.reportTitle}>تقرير الفحوصات المخبرية</Text>
       </View>
 
-      <View style={[styles.paper, {backgroundColor: theme.surface, borderColor: ps.showBorder === false ? 'transparent' : (ps.borderColor || theme.border)}]}>
-        <View style={[styles.paperHeader, {borderBottomColor: theme.primary}]}>
-          {ps.showLogo && settings.logo ? <Image source={{uri: settings.logo}} style={[styles.logo, {width: ps.logoSize || 48, height: ps.logoSize || 48}]} /> : <View style={[styles.logoPlaceholder, {borderColor: theme.accent, backgroundColor: theme.surfaceAlt}]}><Text style={[styles.logoMark, {color: theme.accent}]}>LAB</Text></View>}
-          <View style={styles.headerCenter}>
-            {ps.showCenter !== false && <Text style={[styles.center, {color: theme.primary}]}>{settings.center || 'المختبر الطبي'}</Text>}
-            {ps.showDirectorate !== false && <Text style={[styles.directorate, {color: theme.muted}]}>{settings.directorate || ''}</Text>}
-            <Text style={[styles.reportTitle, {color: theme.text}]}>{ps.reportTitle || 'تقرير الفحوصات المخبرية'}</Text>
-          </View>
-          <View style={[styles.headerStamp, {borderColor: theme.accent}]}><Text style={[styles.stampText, {color: theme.accent}]}>LAB</Text><Text style={[styles.stampSmall, {color: theme.muted}]}>REPORT</Text></View>
+      {/* ===== PATIENT INFO CARD ===== */}
+      <View style={styles.infoCard}>
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>اسم المريض:</Text>
+          <Text style={styles.infoValue}>{patient.name}</Text>
         </View>
 
-        <View style={[styles.patientBox, {backgroundColor: theme.surfaceAlt, borderColor: theme.border}]}>
-          <Info label="اسم المريض" value={patient.name || '—'} wide />
-          {ps.showSeq !== false && <Info label="رقم السجل" value={patient.seq || '—'} />}
-          <Info label="العمر" value={patient.age || '—'} />
-          <Info label="الجنس" value={patient.gender || '—'} />
-          {ps.showDate !== false && <Info label="التاريخ" value={displayDate(patient.date)} />}
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>رقم السجل:</Text>
+          <Text style={styles.infoValue}>{patient.seq}</Text>
         </View>
 
-        {activeSections.map(k => {
-          const sec = TEST_SECTIONS[k];
-          const values = sec.fields.filter(f => String(patient[sec.dataKey]?.[f.key] ?? '').trim());
-          if (!values.length) return null;
-          return (
-            <View key={k} style={[styles.section, {borderColor: theme.border}]}>
-              <View style={[styles.sectionHead, {backgroundColor: theme.primary}]}>
-                <Text style={styles.sectionIcon}>{sec.icon}</Text>
-                <Text style={styles.sectionTitle}>{sec.label}</Text>
-              </View>
-              <View style={styles.tableHead}>
-                <Text style={[styles.headCell, {color: theme.muted}]}>الفحص</Text>
-                <Text style={[styles.headCell, {color: theme.muted}]}>النتيجة</Text>
-                {ps.showNormal !== false && <Text style={[styles.headCell, {color: theme.muted}]}>القيمة الطبيعية</Text>}
-              </View>
-              {values.map((f, i) => (
-                <View key={f.key} style={[styles.resultRow, i % 2 === 1 && {backgroundColor: theme.surfaceAlt}]}>
-                  <Text style={[styles.cell, styles.testCell, {color: theme.text}]}>{f.label}</Text>
-                  <Text style={[styles.cell, styles.valueCell, {color: theme.primary}]}>{String(patient[sec.dataKey]?.[f.key])}</Text>
-                  {ps.showNormal !== false && <Text style={[styles.cell, styles.normalCell, {color: theme.muted}]}>{f.normal}</Text>}
-                </View>
-              ))}
-            </View>
-          );
-        })}
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>النوع:</Text>
+          <Text style={styles.infoValue}>{patient.gender}</Text>
 
-        {ps.showNotes !== false && patient.notes ? <View style={[styles.notes, {borderColor: theme.border, backgroundColor: theme.surfaceAlt}]}><Text style={[styles.notesTitle, {color: theme.primary}]}>ملاحظات</Text><Text style={[styles.notesText, {color: theme.text}]}>{patient.notes}</Text></View> : null}
+          <View style={styles.spacer} />
 
-        {ps.showFooter !== false && <View style={[styles.footer, {borderTopColor: theme.border}]}><Text style={[styles.footerText, {color: theme.muted}]}>{ps.footerText || 'مع تمنياتنا بالصحة والعافية'}</Text><Text style={[styles.footerCode, {color: theme.accent}]}>Medical Laboratory Report</Text></View>}
+          <Text style={styles.infoLabel}>العمر:</Text>
+          <Text style={styles.infoValue}>{patient.age}</Text>
+        </View>
+
+        <View style={styles.infoRow}>
+          <Text style={styles.infoLabel}>التاريخ:</Text>
+          <Text style={styles.infoValue}>{displayDate(patient.date)}</Text>
+        </View>
       </View>
 
-      <View style={styles.actions}>
-        <TouchableOpacity style={[styles.primaryBtn, {backgroundColor: theme.accent}]} onPress={() => exportPatientPdf(patient, settings, ps)}><Text style={styles.btnText}>📄 إنشاء ومشاركة PDF</Text></TouchableOpacity>
-        <TouchableOpacity style={[styles.secondaryBtn, {borderColor: theme.primary, backgroundColor: theme.surface}]} onPress={() => printPatient(patient, settings, ps)}><Text style={[styles.secondaryText, {color: theme.primary}]}>🖨 طباعة مباشرة</Text></TouchableOpacity>
+      {/* ===== TEST SECTIONS ===== */}
+      {getActiveSections().length > 0 ? (
+        getActiveSections().map((sectionKey: SectionKey) => (
+          <TestSection key={sectionKey} sectionKey={sectionKey} patient={patient} colors={colors} />
+        ))
+      ) : (
+        <View style={styles.emptySection}>
+          <Text style={styles.emptyText}>لا توجد فحوصات مسجلة</Text>
+        </View>
+      )}
+
+      {/* ===== NOTES SECTION ===== */}
+      {patient.notes && (
+        <View style={styles.notesCard}>
+          <Text style={styles.notesLabel}>ملاحظات:</Text>
+          <Text style={styles.notesText}>{patient.notes}</Text>
+        </View>
+      )}
+
+      {/* ===== FOOTER ===== */}
+      <View style={styles.footerSection}>
+        <Text style={styles.footerText}>مع تمنياتنا بالصحة والعافية</Text>
+      </View>
+
+      {/* ===== ACTION BUTTONS ===== */}
+      <View style={styles.actionsContainer}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.pdfButton]}
+          onPress={handleExportPDF}
+          disabled={loadingPDF}
+        >
+          {loadingPDF ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.actionButtonText}>📄 إنشاء ومشاركة PDF</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionButton, styles.printButton]}
+          onPress={handlePrint}
+          disabled={loadingPrint}
+        >
+          {loadingPrint ? (
+            <ActivityIndicator color={colors.seal} />
+          ) : (
+            <Text style={[styles.actionButtonText, { color: colors.seal }]}>🖨️ طباعة مباشرة</Text>
+          )}
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
-function Info({label, value, wide}: {label: string; value: string; wide?: boolean}) {
-  return <View style={[styles.info, wide && styles.infoWide]}><Text style={styles.infoLabel}>{label}</Text><Text style={styles.infoValue}>{value}</Text></View>;
+// ===== TEST SECTION COMPONENT =====
+function TestSection({
+  sectionKey,
+  patient,
+  colors,
+}: {
+  sectionKey: SectionKey;
+  patient: Patient;
+  colors: ReturnType<typeof getColors>;
+}) {
+  const section = TEST_SECTIONS[sectionKey];
+  const testData = patient[section.dataKey] || {};
+  const tagColor = TAG_COLORS[sectionKey.toLowerCase() as keyof typeof TAG_COLORS];
+
+  const styles = createTestSectionStyles(colors);
+
+  // Filter fields that have values
+  const fieldsWithValues = section.fields.filter(
+    (field) => String(testData[field.key] ?? '').trim() !== ''
+  );
+
+  if (fieldsWithValues.length === 0) {
+    return null;
+  }
+
+  return (
+    <View style={styles.section}>
+      <View style={[styles.sectionHeader, { backgroundColor: colors.seal }]}>
+        <Text style={styles.sectionTitle}>
+          {section.icon} {section.label}
+        </Text>
+      </View>
+
+      <View style={styles.tableWrapper}>
+        {/* Table Header */}
+        <View style={[styles.tableRow, styles.tableHeader]}>
+          <Text style={[styles.tableCell, styles.headerCell, { color: '#FFFFFF' }]}>الفحص</Text>
+          <Text style={[styles.tableCell, styles.headerCell, { color: '#FFFFFF' }]}>النتيجة</Text>
+          <Text
+            style={[styles.tableCell, styles.headerCell, { textAlign: 'left', color: '#FFFFFF' }]}
+          >
+            المعدل الطبيعي
+          </Text>
+        </View>
+
+        {/* Table Rows */}
+        {fieldsWithValues.map((field, index) => (
+          <View key={field.key} style={[styles.tableRow, index % 2 === 0 && styles.alternateRow]}>
+            <Text style={[styles.tableCell, styles.testName]}>{field.label}</Text>
+            <Text style={[styles.tableCell, styles.testValue]}>{testData[field.key]}</Text>
+            <Text style={[styles.tableCell, styles.testNormal]}>{field.normal}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
 }
 
-const styles = StyleSheet.create({
-  root:{flex:1}, content:{padding:12,paddingBottom:32,maxWidth:900,width:'100%',alignSelf:'center'},
-  toolbar:{flexDirection:'row-reverse',alignItems:'center',justifyContent:'space-between',padding:14,borderWidth:1,borderRadius:16,marginBottom:12,elevation:2},
-  toolbarTitle:{fontSize:18,fontWeight:'900',textAlign:'right'}, toolbarSub:{fontSize:12,marginTop:3,textAlign:'right'},
-  seqPill:{minWidth:48,height:48,borderRadius:14,alignItems:'center',justifyContent:'center'}, seqText:{color:'#fff',fontSize:18,fontWeight:'900'},
-  paper:{borderWidth:1,borderRadius:16,padding:18,elevation:3,shadowOpacity:.08,shadowRadius:14,shadowOffset:{width:0,height:5}},
-  paperHeader:{minHeight:105,borderBottomWidth:2,flexDirection:'row-reverse',alignItems:'center',paddingBottom:14,marginBottom:14},
-  logo:{resizeMode:'contain',marginLeft:10}, logoPlaceholder:{width:48,height:48,borderRadius:24,borderWidth:2,alignItems:'center',justifyContent:'center',marginLeft:10}, logoMark:{fontSize:12,fontWeight:'900'},
-  headerCenter:{flex:1,alignItems:'center'}, center:{fontSize:21,fontWeight:'900',textAlign:'center'}, directorate:{fontSize:11,marginTop:3,textAlign:'center'}, reportTitle:{fontSize:17,fontWeight:'900',marginTop:9,textAlign:'center'},
-  headerStamp:{width:58,height:58,borderWidth:2,borderRadius:12,alignItems:'center',justifyContent:'center',marginRight:8},stampText:{fontWeight:'900',fontSize:15},stampSmall:{fontSize:7,marginTop:2,fontWeight:'800'},
-  patientBox:{flexDirection:'row-reverse',flexWrap:'wrap',borderWidth:1,borderRadius:12,padding:7,marginBottom:16}, info:{width:'25%',padding:7,minWidth:120},infoWide:{width:'50%'},infoLabel:{fontSize:10,color:'#718078',textAlign:'right',fontWeight:'700'},infoValue:{fontSize:13,fontWeight:'900',textAlign:'right',marginTop:3,color:'#26332f'},
-  section:{borderWidth:1,borderRadius:12,overflow:'hidden',marginBottom:14}, sectionHead:{flexDirection:'row-reverse',paddingVertical:9,paddingHorizontal:12,alignItems:'center'},sectionIcon:{fontSize:17,marginLeft:7},sectionTitle:{color:'#fff',fontSize:15,fontWeight:'900',textAlign:'right'},
-  tableHead:{flexDirection:'row-reverse',paddingVertical:7,paddingHorizontal:8},headCell:{flex:1,textAlign:'right',fontSize:10,fontWeight:'900'},resultRow:{flexDirection:'row-reverse',paddingVertical:9,paddingHorizontal:8,borderTopWidth:1,borderTopColor:'#e6ebe8'},cell:{flex:1,textAlign:'right',fontSize:12},testCell:{fontWeight:'800'},valueCell:{fontWeight:'900',textAlign:'center'},normalCell:{fontSize:10,textAlign:'left'},
-  notes:{borderWidth:1,borderRadius:10,padding:11,marginTop:4},notesTitle:{fontWeight:'900',textAlign:'right'},notesText:{marginTop:5,lineHeight:21,textAlign:'right'},footer:{borderTopWidth:1,marginTop:18,paddingTop:12,alignItems:'center'},footerText:{fontSize:11},footerCode:{fontSize:8,marginTop:3,fontWeight:'800'},
-  actions:{flexDirection:'row-reverse',gap:10,marginTop:12},primaryBtn:{flex:1,paddingVertical:14,borderRadius:13,alignItems:'center'},btnText:{color:'#fff',fontWeight:'900'},secondaryBtn:{flex:1,paddingVertical:13,borderRadius:13,borderWidth:1,alignItems:'center'},secondaryText:{fontWeight:'900'},
-  empty:{flex:1,alignItems:'center',justifyContent:'center'},emptyText:{fontSize:18,fontWeight:'900'},
-});
+// ===== STYLES =====
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.paper,
+    },
+    contentContainer: {
+      padding: SPACING[4],
+      paddingBottom: SPACING[12],
+    },
+    errorText: {
+      fontSize: 16,
+      color: colors.danger,
+      fontWeight: '600',
+      fontFamily: 'Tajawal',
+    },
+
+    // ===== Header =====
+    headerSection: {
+      backgroundColor: colors.panel,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: SPACING[4],
+      marginBottom: SPACING[4],
+      borderWidth: 1,
+      borderColor: colors.line,
+      ...SHADOWS.sm,
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: '900',
+      color: colors.navy,
+      textAlign: 'center',
+      fontFamily: 'Tajawal-Bold',
+    },
+    headerSubtitle: {
+      fontSize: 13,
+      color: colors.inkSub,
+      textAlign: 'center',
+      marginTop: 2,
+      fontFamily: 'Tajawal',
+    },
+    divider: {
+      height: 1,
+      backgroundColor: colors.line,
+      marginVertical: SPACING[4],
+    },
+    reportTitle: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: colors.navy,
+      textAlign: 'center',
+      fontFamily: 'Tajawal-Bold',
+      marginTop: SPACING[2],
+    },
+
+    // ===== Info Card =====
+    infoCard: {
+      backgroundColor: colors.panel,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: SPACING[4],
+      marginBottom: SPACING[4],
+      borderWidth: 1,
+      borderColor: colors.line,
+      ...SHADOWS.sm,
+    },
+    infoRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      alignItems: 'center',
+      paddingVertical: SPACING[2],
+      borderBottomWidth: 1,
+      borderBottomColor: colors.line,
+    },
+    infoLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: colors.inkSub,
+      marginRight: SPACING[2],
+      fontFamily: 'Tajawal-Bold',
+    },
+    infoValue: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.ink,
+      fontFamily: 'Tajawal-Bold',
+    },
+    spacer: {
+      flex: 1,
+    },
+
+    // ===== Empty State =====
+    emptySection: {
+      paddingVertical: SPACING[8],
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyText: {
+      fontSize: 16,
+      color: colors.inkSub,
+      fontFamily: 'Tajawal',
+    },
+
+    // ===== Notes =====
+    notesCard: {
+      backgroundColor: colors.panel,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: SPACING[4],
+      marginBottom: SPACING[4],
+      borderWidth: 1,
+      borderColor: colors.line,
+    },
+    notesLabel: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: colors.navy,
+      marginBottom: SPACING[2],
+      fontFamily: 'Tajawal-Bold',
+    },
+    notesText: {
+      fontSize: 14,
+      color: colors.ink,
+      lineHeight: 22,
+      textAlign: 'right',
+      fontFamily: 'Tajawal',
+    },
+
+    // ===== Footer =====
+    footerSection: {
+      paddingVertical: SPACING[6],
+      borderTopWidth: 1,
+      borderTopColor: colors.line,
+      marginBottom: SPACING[4],
+    },
+    footerText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.inkSub,
+      textAlign: 'center',
+      fontFamily: 'Tajawal-Bold',
+    },
+
+    // ===== Actions =====
+    actionsContainer: {
+      gap: SPACING[3],
+      marginBottom: SPACING[4],
+    },
+    actionButton: {
+      paddingVertical: SPACING[3],
+      borderRadius: BORDER_RADIUS.lg,
+      justifyContent: 'center',
+      alignItems: 'center',
+      minHeight: 48,
+    },
+    pdfButton: {
+      backgroundColor: colors.navy,
+    },
+    printButton: {
+      backgroundColor: colors.panel,
+      borderWidth: 1,
+      borderColor: colors.seal,
+    },
+    actionButtonText: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      fontFamily: 'Tajawal-Bold',
+    },
+  });
+
+const createTestSectionStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    section: {
+      marginBottom: SPACING[4],
+      borderRadius: BORDER_RADIUS.lg,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.panel,
+      ...SHADOWS.sm,
+    },
+    sectionHeader: {
+      paddingHorizontal: SPACING[4],
+      paddingVertical: SPACING[3],
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: '#FFFFFF',
+      textAlign: 'right',
+      fontFamily: 'Tajawal-Bold',
+    },
+    tableWrapper: {
+      borderTopWidth: 1,
+      borderTopColor: colors.line,
+    },
+    tableRow: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.line,
+      minHeight: 44,
+    },
+    tableHeader: {
+      backgroundColor: colors.navy,
+    },
+    alternateRow: {
+      backgroundColor: colors.paper,
+    },
+    tableCell: {
+      flex: 1,
+      paddingHorizontal: SPACING[2],
+      paddingVertical: SPACING[2],
+      fontSize: 12,
+      fontFamily: 'Tajawal',
+    },
+    headerCell: {
+      fontWeight: '800',
+      fontFamily: 'Tajawal-Bold',
+      textAlign: 'right',
+    },
+    testName: {
+      fontWeight: '700',
+      color: colors.ink,
+      textAlign: 'right',
+      flex: 1.5,
+    },
+    testValue: {
+      fontWeight: '700',
+      color: colors.navy,
+      textAlign: 'center',
+      flex: 1,
+    },
+    testNormal: {
+      color: colors.inkSub,
+      textAlign: 'left',
+      fontSize: 11,
+      flex: 1,
+    },
+  });
