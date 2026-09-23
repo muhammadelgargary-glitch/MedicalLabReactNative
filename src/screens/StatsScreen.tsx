@@ -1,798 +1,353 @@
-import React, {useMemo, useState} from 'react';
+// src/screens/StatsScreen.tsx - لوحة الإحصائيات احترافية
+
+import React, { useMemo } from 'react';
 import {
-  Alert,
   ScrollView,
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
+  SafeAreaView,
+  Dimensions,
 } from 'react-native';
+import { useLabStore } from '../store/useLabStore';
+import { createTheme } from '../styles/theme';
+import { getColors } from '../styles/colors';
+import { SPACING, BORDER_RADIUS, SHADOWS, FLEX_CENTERS } from '../styles/spacing';
+import { StatsCard } from '../components/PatientCard';
 
-import {useLabStore} from '../store/useLabStore';
-import {getTheme} from '../utils/theme';
+interface StatsScreenProps {
+  navigation: any;
+}
 
-import {
-  getStats,
-  exportPatientsExcel,
-  exportStatsPdf,
-  printStats,
-} from '../services/exportService';
+export default function StatsScreen({ navigation }: StatsScreenProps) {
+  const patients = useLabStore((s) => s.patients);
+  const isDark = useLabStore((s) => s.darkMode);
+  const themeType = useLabStore((s) => s.theme);
 
-export default function StatsScreen() {
-  const patients = useLabStore(s => s.patients);
-  const settings = useLabStore(s => s.settings);
-
-  const [busy, setBusy] = useState<
-    'pdf' | 'print' | 'excel' | null
-  >(null);
-
-  const dark = !!settings?.darkMode;
-  const theme = getTheme(settings);
+  const colors = getColors(isDark, themeType);
+  const styles = createStyles(colors);
 
   const stats = useMemo(() => {
-    return getStats(patients);
+    const today = new Date().toISOString().split('T')[0];
+    return {
+      totalPatients: patients.length,
+      todayPatients: patients.filter((p) => p.date === today).length,
+      blood: patients.filter((p) => p.includeBlood).length,
+      chemistry: patients.filter((p) => p.includeChem).length,
+      urine: patients.filter((p) => p.includeUrine).length,
+      serology: patients.filter((p) => p.includeSerology).length,
+      stool: patients.filter((p) => p.includeStool).length,
+      pregnancy: patients.filter((p) => p.includePreg).length,
+      withNotes: patients.filter((p) => p.notes && p.notes.trim()).length,
+    };
   }, [patients]);
 
-  /*
-   * getStats() يرجع sections كمصفوفة
-   */
-  const sections = stats?.sections ?? [];
-
-  /* =====================================================
-     PDF
-  ===================================================== */
-
-  const handlePdf = async () => {
-    try {
-      setBusy('pdf');
-
-      await exportStatsPdf(
-        stats,
-        settings,
-        settings?.printSettings || {},
-      );
-    } catch (error) {
-      console.log('Statistics PDF error:', error);
-
-      Alert.alert(
-        'خطأ',
-        'تعذر إنشاء ملف PDF للإحصائيات.',
-      );
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  /* =====================================================
-     Print
-  ===================================================== */
-
-  const handlePrint = async () => {
-    try {
-      setBusy('print');
-
-      await printStats(
-        stats,
-        settings,
-        settings?.printSettings || {},
-      );
-    } catch (error) {
-      console.log('Statistics print error:', error);
-
-      Alert.alert(
-        'خطأ',
-        'تعذر فتح الطباعة.',
-      );
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  /* =====================================================
-     Excel
-  ===================================================== */
-
-  const handleExcel = async () => {
-    if (!patients.length) {
-      Alert.alert(
-        'لا توجد بيانات',
-        'لا توجد سجلات مرضى لتصديرها.',
-      );
-
-      return;
-    }
-
-    try {
-      setBusy('excel');
-
-      await exportPatientsExcel(patients);
-    } catch (error) {
-      console.log('Statistics Excel error:', error);
-
-      Alert.alert(
-        'خطأ',
-        'تعذر إنشاء ملف Excel.',
-      );
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  /* =====================================================
-     UI
-  ===================================================== */
-
   return (
-    <ScrollView
-      style={[
-        styles.root,
-        {backgroundColor: theme.background},
-        dark && styles.rootDark,
-      ]}
-      contentContainerStyle={styles.content}
-    >
-
-      {/* العنوان */}
-
-      <Text
-        style={[
-          styles.h,
-          dark && styles.textLight,
-        ]}
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}
       >
-        📊 التقرير الإحصائي الطبي
-      </Text>
+        {/* ===== HEADER ===== */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>📊 الإحصائيات</Text>
+          <Text style={styles.headerSubtitle}>ملخص شامل للبيانات</Text>
+        </View>
 
-      <Text
-        style={[
-          styles.subHeader,
-          dark && styles.textMuted,
-        ]}
-      >
-        ملخص شامل لسجلات وفحوصات المختبر
-      </Text>
+        {/* ===== MAIN STATS ===== */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📈 الإحصائيات الرئيسية</Text>
+          <View style={styles.mainStatsGrid}>
+            <StatsCard
+              title="مرضى اليوم"
+              value={stats.todayPatients}
+              icon="👤"
+              color={colors.navy}
+            />
+            <StatsCard
+              title="إجمالي المرضى"
+              value={stats.totalPatients}
+              icon="📋"
+              color={colors.seal}
+            />
+          </View>
+        </View>
 
-      {/* البطاقات الرئيسية */}
+        {/* ===== TEST TYPES ===== */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🧪 توزيع الفحوصات</Text>
 
-      <View style={styles.grid}>
-
-        <Box
-          t="إجمالي المرضى"
-          n={stats.total}
-          dark={dark}
-        />
-
-        <Box
-          t="سجلات اليوم"
-          n={stats.today}
-          dark={dark}
-        />
-
-        <Box
-          t="ذكور"
-          n={stats.males}
-          dark={dark}
-        />
-
-        <Box
-          t="إناث"
-          n={stats.females}
-          dark={dark}
-        />
-
-      </View>
-
-      {/* توزيع الفحوصات */}
-
-      <View
-        style={[
-          styles.card,
-          dark && styles.cardDark,
-        ]}
-      >
-
-        <Text
-          style={[
-            styles.title,
-            dark && styles.textLight,
-          ]}
-        >
-          توزيع الفحوصات
-        </Text>
-
-        {sections.length === 0 ? (
-
-          <View style={styles.empty}>
-
-            <Text style={styles.emptyIcon}>
-              📋
-            </Text>
-
-            <Text
-              style={[
-                styles.emptyText,
-                dark && styles.textMuted,
-              ]}
-            >
-              لا توجد بيانات فحوصات حتى الآن.
-            </Text>
-
+          <View style={styles.statsGrid}>
+            <StatsCard
+              title="فحوصات الدم"
+              value={stats.blood}
+              icon="🩸"
+              color="#D32F2F"
+            />
+            <StatsCard
+              title="كيمياء الدم"
+              value={stats.chemistry}
+              icon="🧬"
+              color="#7B1FA2"
+            />
           </View>
 
-        ) : (
+          <View style={styles.statsGrid}>
+            <StatsCard
+              title="تحليل البول"
+              value={stats.urine}
+              icon="💧"
+              color="#0288D1"
+            />
+            <StatsCard
+              title="الأمصال"
+              value={stats.serology}
+              icon="🧪"
+              color="#F57C00"
+            />
+          </View>
 
-          sections.map(section => {
+          <View style={styles.statsGrid}>
+            <StatsCard
+              title="تحليل البراز"
+              value={stats.stool}
+              icon="🪳"
+              color="#6D4C41"
+            />
+            <StatsCard
+              title="اختبارات الحمل"
+              value={stats.pregnancy}
+              icon="🤰"
+              color="#C2185B"
+            />
+          </View>
+        </View>
 
-            /*
-             * getStats الجديد يرجع tests كمصفوفة:
-             *
-             * [
-             *   {name:'Hb', count:5},
-             *   {name:'WBC', count:4}
-             * ]
-             */
+        {/* ===== DETAILED METRICS ===== */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>📑 البيانات التفصيلية</Text>
 
-            const testEntries = (
-              section.tests ?? []
-            ).filter(
-              test => Number(test.count) > 0,
-            );
+          <View style={styles.metricItem}>
+            <View style={styles.metricInfo}>
+              <Text style={styles.metricLabel}>نسبة السجلات مع الملاحظات</Text>
+              <Text style={styles.metricDescription}>
+                {stats.totalPatients > 0
+                  ? ((stats.withNotes / stats.totalPatients) * 100).toFixed(1)
+                  : 0}
+                %
+              </Text>
+            </View>
+            <ProgressBar
+              percentage={
+                stats.totalPatients > 0
+                  ? (stats.withNotes / stats.totalPatients) * 100
+                  : 0
+              }
+              color={colors.seal}
+            />
+          </View>
 
-            return (
-              <View
-                key={section.key}
-                style={[
-                  styles.section,
-                  dark && styles.sectionDark,
-                ]}
-              >
+          <View style={styles.metricItem}>
+            <View style={styles.metricInfo}>
+              <Text style={styles.metricLabel}>متوسط الفحوصات للمريض</Text>
+              <Text style={styles.metricDescription}>
+                {stats.totalPatients > 0
+                  ? (
+                      (stats.blood +
+                        stats.chemistry +
+                        stats.urine +
+                        stats.serology +
+                        stats.stool +
+                        stats.pregnancy) /
+                      stats.totalPatients
+                    ).toFixed(1)
+                  : 0}
+              </Text>
+            </View>
+            <ProgressBar
+              percentage={
+                stats.totalPatients > 0
+                  ? ((stats.blood +
+                      stats.chemistry +
+                      stats.urine +
+                      stats.serology +
+                      stats.stool +
+                      stats.pregnancy) /
+                      (stats.totalPatients * 6)) *
+                    100
+                  : 0
+              }
+              color={colors.navy}
+            />
+          </View>
+        </View>
 
-                {/* اسم القسم */}
+        {/* ===== SUMMARY ===== */}
+        <View style={[styles.section, styles.summarySection]}>
+          <Text style={styles.sectionTitle}>📝 ملخص</Text>
 
-                <View
-                  style={styles.sectionHeader}
-                >
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryLabel}>إجمالي السجلات:</Text>
+            <Text style={styles.summaryValue}>{stats.totalPatients}</Text>
+          </View>
 
-                  <Text
-                    style={[
-                      styles.sec,
-                      dark && styles.textLight,
-                    ]}
-                  >
-                    {section.name ||
-                      getSectionName(
-                        section.key,
-                      )}
-                  </Text>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryLabel}>السجلات اليوم:</Text>
+            <Text style={styles.summaryValue}>{stats.todayPatients}</Text>
+          </View>
 
-                  <View
-                    style={
-                      styles.sectionCount
-                    }
-                  >
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryLabel}>إجمالي الفحوصات:</Text>
+            <Text style={styles.summaryValue}>
+              {stats.blood +
+                stats.chemistry +
+                stats.urine +
+                stats.serology +
+                stats.stool +
+                stats.pregnancy}
+            </Text>
+          </View>
 
-                    <Text
-                      style={
-                        styles.sectionCountNumber
-                      }
-                    >
-                      {section.count || 0}
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.sectionCountLabel
-                      }
-                    >
-                      سجل
-                    </Text>
-
-                  </View>
-
-                </View>
-
-                {/* الفحوصات */}
-
-                {testEntries.length === 0 ? (
-
-                  <Text
-                    style={[
-                      styles.noTests,
-                      dark &&
-                        styles.textMuted,
-                    ]}
-                  >
-                    لا توجد فحوصات مسجلة.
-                  </Text>
-
-                ) : (
-
-                  testEntries.map(test => (
-
-                    <View
-                      key={test.name}
-                      style={[
-                        styles.test,
-                        dark &&
-                          styles.testDark,
-                      ]}
-                    >
-
-                      <Text
-                        style={[
-                          styles.testName,
-                          dark &&
-                            styles.textLight,
-                        ]}
-                      >
-                        {test.name}
-                      </Text>
-
-                      <View
-                        style={
-                          styles.testBadge
-                        }
-                      >
-
-                        <Text
-                          style={
-                            styles.testCount
-                          }
-                        >
-                          {test.count}
-                        </Text>
-
-                      </View>
-
-                    </View>
-
-                  ))
-
-                )}
-
-              </View>
-            );
-          })
-
-        )}
-
-      </View>
-
-      {/* أزرار التصدير */}
-
-      <View
-        style={[
-          styles.actionsCard,
-          dark && styles.cardDark,
-        ]}
-      >
-
-        <Text
-          style={[
-            styles.actionsTitle,
-            dark && styles.textLight,
-          ]}
-        >
-          تصدير وطباعة التقرير
-        </Text>
-
-        {/* PDF */}
-
-        <TouchableOpacity
-          disabled={!!busy}
-          style={[
-            styles.pdfButton,
-            !!busy && styles.disabledButton,
-          ]}
-          onPress={handlePdf}
-        >
-
-          <Text style={styles.buttonText}>
-            {busy === 'pdf'
-              ? '⏳ جاري إنشاء PDF...'
-              : '📄 تصدير الإحصائيات PDF'}
-          </Text>
-
-        </TouchableOpacity>
-
-        {/* طباعة */}
-
-        <TouchableOpacity
-          disabled={!!busy}
-          style={[
-            styles.printButton,
-            dark && styles.printButtonDark,
-            !!busy && styles.disabledButton,
-          ]}
-          onPress={handlePrint}
-        >
-
-          <Text
-            style={[
-              styles.printText,
-              dark && styles.textLight,
-            ]}
-          >
-            {busy === 'print'
-              ? '⏳ جاري فتح الطباعة...'
-              : '🖨️ طباعة الإحصائيات'}
-          </Text>
-
-        </TouchableOpacity>
-
-        {/* Excel */}
-
-        <TouchableOpacity
-          disabled={!!busy}
-          style={[
-            styles.excelButton,
-            dark && styles.excelButtonDark,
-            !!busy && styles.disabledButton,
-          ]}
-          onPress={handleExcel}
-        >
-
-          <Text
-            style={[
-              styles.excelText,
-              dark && styles.textLight,
-            ]}
-          >
-            {busy === 'excel'
-              ? '⏳ جاري إنشاء Excel...'
-              : '📗 تصدير السجلات إلى Excel'}
-          </Text>
-
-        </TouchableOpacity>
-
-      </View>
-
-    </ScrollView>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryLabel}>السجلات بملاحظات:</Text>
+            <Text style={styles.summaryValue}>{stats.withNotes}</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-/* =========================================================
-   Box
-========================================================= */
-
-function Box({
-  t,
-  n,
-  dark,
-}: {
-  t: string;
-  n: number;
-  dark: boolean;
-}) {
+// ===== PROGRESS BAR COMPONENT =====
+function ProgressBar({ percentage, color }: { percentage: number; color: string }) {
+  const colors = getColors(false, 'default');
   return (
-    <View
-      style={[
-        styles.box,
-        dark && styles.boxDark,
-      ]}
-    >
-
-      <Text style={styles.bn}>
-        {n}
-      </Text>
-
-      <Text
-        style={[
-          styles.bt,
-          dark && styles.textMuted,
-        ]}
-      >
-        {t}
-      </Text>
-
+    <View style={{ height: 6, backgroundColor: colors.line, borderRadius: 3, overflow: 'hidden' }}>
+      <View
+        style={{
+          height: '100%',
+          width: `${Math.min(percentage, 100)}%`,
+          backgroundColor: color,
+        }}
+      />
     </View>
   );
 }
 
-/* =========================================================
-   اسم القسم
-========================================================= */
+// ===== STYLES =====
+const createStyles = (colors: ReturnType<typeof getColors>) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.paper,
+    },
+    contentContainer: {
+      paddingBottom: SPACING[8],
+    },
 
-function getSectionName(key: string) {
-  const names: Record<string, string> = {
-    Blood: 'أمراض الدم',
-    Chem: 'الكيمياء',
-    Urine: 'فحص البول العام',
-    Serology: 'المصليات',
-    Stool: 'فحص البراز',
-    Preg: 'الحمل / الهرمونات',
+    // ===== Header =====
+    header: {
+      backgroundColor: colors.headerBg,
+      paddingHorizontal: SPACING[4],
+      paddingVertical: SPACING[4],
+      marginBottom: SPACING[4],
+    },
+    headerTitle: {
+      fontSize: 24,
+      fontWeight: '900',
+      color: colors.headerText,
+      fontFamily: 'Tajawal-Bold',
+    },
+    headerSubtitle: {
+      fontSize: 13,
+      color: colors.headerText,
+      opacity: 0.7,
+      marginTop: SPACING[1],
+      fontFamily: 'Tajawal',
+    },
 
-    hematology: 'أمراض الدم',
-    chemistry: 'الكيمياء',
-    urine: 'فحص البول العام',
-    generalUrine: 'فحص البول العام',
-    blood: 'أمراض الدم',
-    biochemistry: 'الكيمياء',
-  };
+    // ===== Section =====
+    section: {
+      paddingHorizontal: SPACING[4],
+      marginBottom: SPACING[6],
+    },
+    sectionTitle: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.navy,
+      marginBottom: SPACING[4],
+      fontFamily: 'Tajawal-Bold',
+    },
 
-  return names[key] || key;
-}
+    // ===== Main Stats Grid =====
+    mainStatsGrid: {
+      flexDirection: 'row',
+      gap: SPACING[2],
+      marginBottom: SPACING[2],
+    },
 
-/* =========================================================
-   Styles
-========================================================= */
+    // ===== Stats Grid =====
+    statsGrid: {
+      flexDirection: 'row',
+      gap: SPACING[2],
+      marginBottom: SPACING[3],
+    },
 
-const styles = StyleSheet.create({
+    // ===== Metric Item =====
+    metricItem: {
+      backgroundColor: colors.panel,
+      borderRadius: BORDER_RADIUS.lg,
+      padding: SPACING[4],
+      marginBottom: SPACING[3],
+      borderWidth: 1,
+      borderColor: colors.line,
+    },
+    metricInfo: {
+      marginBottom: SPACING[2],
+    },
+    metricLabel: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.ink,
+      fontFamily: 'Tajawal-Bold',
+      marginBottom: SPACING[1],
+    },
+    metricDescription: {
+      fontSize: 18,
+      fontWeight: '800',
+      color: colors.navy,
+      fontFamily: 'Tajawal-Bold',
+    },
 
-  root: {
-    flex: 1,
-    backgroundColor: '#f4f7f6',
-  },
-
-  rootDark: {
-    backgroundColor: '#101817',
-  },
-
-  content: {
-    padding: 12,
-    paddingBottom: 35,
-  },
-
-  h: {
-    fontSize: 22,
-    fontWeight: '900',
-    textAlign: 'right',
-    color: '#1d3b36',
-  },
-
-  subHeader: {
-    textAlign: 'right',
-    color: '#687570',
-    fontSize: 13,
-    marginTop: 5,
-    marginBottom: 14,
-  },
-
-  textLight: {
-    color: '#f2f7f5',
-  },
-
-  textMuted: {
-    color: '#a9b7b2',
-  },
-
-  grid: {
-    flexDirection: 'row-reverse',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-
-  box: {
-    width: '48%',
-    backgroundColor: '#ffffff',
-    borderRadius: 15,
-    padding: 15,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#e0e6e3',
-  },
-
-  boxDark: {
-    backgroundColor: '#182320',
-    borderColor: '#293733',
-  },
-
-  bn: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#1d3b36',
-  },
-
-  bt: {
-    color: '#666',
-    marginTop: 3,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#e0e6e3',
-  },
-
-  cardDark: {
-    backgroundColor: '#182320',
-    borderColor: '#293733',
-  },
-
-  title: {
-    fontSize: 18,
-    fontWeight: '900',
-    textAlign: 'right',
-    marginBottom: 10,
-    color: '#1d3b36',
-  },
-
-  section: {
-    borderTopWidth: 1,
-    borderTopColor: '#e7ecea',
-    paddingVertical: 10,
-  },
-
-  sectionDark: {
-    borderTopColor: '#293733',
-  },
-
-  sectionHeader: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  sec: {
-    flex: 1,
-    fontWeight: '900',
-    fontSize: 16,
-    textAlign: 'right',
-    color: '#1d3b36',
-  },
-
-  sectionCount: {
-    minWidth: 58,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 10,
-    backgroundColor: '#e7efec',
-    alignItems: 'center',
-  },
-
-  sectionCountNumber: {
-    color: '#1d3b36',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-
-  sectionCountLabel: {
-    color: '#687570',
-    fontSize: 9,
-    fontWeight: '700',
-  },
-
-  test: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 7,
-    paddingHorizontal: 8,
-    marginTop: 4,
-    borderRadius: 9,
-    backgroundColor: '#f5f8f7',
-  },
-
-  testDark: {
-    backgroundColor: '#202d29',
-  },
-
-  testName: {
-    flex: 1,
-    textAlign: 'right',
-    color: '#26332f',
-    fontSize: 13,
-  },
-
-  testBadge: {
-    minWidth: 35,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: '#1d3b36',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 8,
-  },
-
-  testCount: {
-    color: '#ffffff',
-    fontWeight: '900',
-    fontSize: 12,
-  },
-
-  noTests: {
-    textAlign: 'right',
-    color: '#777',
-    fontSize: 12,
-    marginTop: 7,
-  },
-
-  empty: {
-    alignItems: 'center',
-    paddingVertical: 25,
-  },
-
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: 8,
-  },
-
-  emptyText: {
-    color: '#777',
-    textAlign: 'center',
-    fontSize: 14,
-  },
-
-  actionsCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#e0e6e3',
-  },
-
-  actionsTitle: {
-    textAlign: 'right',
-    fontSize: 17,
-    fontWeight: '900',
-    color: '#1d3b36',
-    marginBottom: 10,
-  },
-
-  pdfButton: {
-    backgroundColor: '#1d3b36',
-    padding: 15,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 5,
-  },
-
-  buttonText: {
-    color: '#ffffff',
-    fontWeight: '900',
-    fontSize: 14,
-  },
-
-  printButton: {
-    marginTop: 9,
-    padding: 15,
-    borderRadius: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#1d3b36',
-    backgroundColor: '#ffffff',
-  },
-
-  printButtonDark: {
-    backgroundColor: '#182320',
-    borderColor: '#8bb8ad',
-  },
-
-  printText: {
-    color: '#1d3b36',
-    fontWeight: '900',
-    fontSize: 14,
-  },
-
-  excelButton: {
-    marginTop: 9,
-    padding: 15,
-    borderRadius: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#607d74',
-    backgroundColor: '#f5f8f7',
-  },
-
-  excelButtonDark: {
-    backgroundColor: '#202d29',
-    borderColor: '#8bb8ad',
-  },
-
-  excelText: {
-    color: '#1d3b36',
-    fontWeight: '900',
-    fontSize: 14,
-  },
-
-  disabledButton: {
-    opacity: 0.6,
-  },
-
-});
+    // ===== Summary Section =====
+    summarySection: {
+      backgroundColor: colors.panel,
+      borderRadius: BORDER_RADIUS.lg,
+      paddingHorizontal: SPACING[4],
+      paddingVertical: SPACING[4],
+      borderWidth: 1,
+      borderColor: colors.line,
+      ...SHADOWS.sm,
+    },
+    summaryItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: SPACING[2],
+      borderBottomWidth: 1,
+      borderBottomColor: colors.line,
+    },
+    summaryLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.inkSub,
+      fontFamily: 'Tajawal',
+    },
+    summaryValue: {
+      fontSize: 16,
+      fontWeight: '800',
+      color: colors.navy,
+      fontFamily: 'Tajawal-Bold',
+    },
+  });
+ 
