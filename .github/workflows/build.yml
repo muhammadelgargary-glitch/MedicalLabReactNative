@@ -50,7 +50,7 @@ jobs:
         run: |
           npx expo export --platform web
 
-      - name: Setup Pages
+      - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 
       - name: Upload Web artifact
@@ -64,6 +64,12 @@ jobs:
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
+
+      - name: Configure EAS Project
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas init --account an7mds-team --non-interactive
 
       - name: Show EAS version
         run: eas --version
