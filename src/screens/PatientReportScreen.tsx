@@ -363,6 +363,28 @@ export default function PatientReportScreen({
 
         {/* أزرار العمليات */}
         <View style={styles.actions}>
+
+          {/* إدخال / تعديل النتائج */}
+          <TouchableOpacity
+            disabled={!!busy}
+            onPress={() =>
+              navigation.navigate(
+                'ResultEntry',
+                { id: patient.id },
+              )
+            }
+            style={styles.resultAction}
+          >
+            <Text style={styles.resultActionIcon}>
+              ✎
+            </Text>
+
+            <Text style={styles.resultActionText}>
+              إدخال / تعديل النتائج
+            </Text>
+          </TouchableOpacity>
+
+          {/* PDF */}
           <TouchableOpacity
             disabled={!!busy}
             onPress={() => run('pdf')}
@@ -383,6 +405,7 @@ export default function PatientReportScreen({
             )}
           </TouchableOpacity>
 
+          {/* الطباعة */}
           <TouchableOpacity
             disabled={!!busy}
             onPress={() => run('print')}
@@ -405,6 +428,7 @@ export default function PatientReportScreen({
             )}
           </TouchableOpacity>
 
+          {/* طباعة عدة تقارير */}
           <TouchableOpacity
             disabled={!!busy}
             onPress={() =>
@@ -419,6 +443,7 @@ export default function PatientReportScreen({
             </Text>
           </TouchableOpacity>
 
+          {/* حذف السجل */}
           <TouchableOpacity
             disabled={!!busy}
             onPress={remove}
@@ -1031,6 +1056,33 @@ const createStyles = (
     actions: {
       padding: 14,
       gap: 9,
+    },
+
+    /*
+     * زر إدخال / تعديل النتائج
+     */
+    resultAction: {
+      minHeight: 54,
+      borderRadius: 15,
+      backgroundColor: c.seal,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      ...SHADOWS.sm,
+    },
+
+    resultActionText: {
+      color: '#fff',
+      fontSize: 14 * s,
+      fontWeight: '900',
+      fontFamily: f,
+    },
+
+    resultActionIcon: {
+      color: '#fff',
+      fontSize: 20,
+      fontWeight: '900',
     },
 
     primaryAction: {
