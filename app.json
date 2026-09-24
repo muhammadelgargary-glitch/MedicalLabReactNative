@@ -18,11 +18,8 @@
         "backgroundColor": "#1d3b36"
       }
     },
-    "web": {
-      "output": "static"
-    },
     "plugins": [
       "@react-native-google-signin/google-signin"
     ]
   }
-} 
+}
