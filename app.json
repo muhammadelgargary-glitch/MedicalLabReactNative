@@ -5,6 +5,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "platforms": [
+      "android",
+      "web"
+    ],
+    "splash": {
+      "backgroundColor": "#F5F7F6"
+    },
     "android": {
       "package": "com.medical.lab",
       "adaptiveIcon": {
@@ -15,4 +22,4 @@
       "@react-native-google-signin/google-signin"
     ]
   }
-}
+} 
