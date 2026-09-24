@@ -1,552 +1,126 @@
-// src/screens/SettingsScreen.tsx - إعدادات احترافية مع theme customizer
-
-import React, { useState } from 'react';
-import {
-  ScrollView,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Switch,
-  SafeAreaView,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLabStore } from '../store/useLabStore';
-import { createTheme, ThemeType } from '../styles/theme';
-import { getColors, THEME_PRESETS, ThemeType as ColorThemeType } from '../styles/colors';
-import { SPACING, BORDER_RADIUS, SHADOWS } from '../styles/spacing';
-import ThemedButton from '../components/ThemedButton';
+import { getColors } from '../styles/colors';
+import { resolveFontFamily, fontScale } from '../styles/design';
+import { BORDER_RADIUS, SHADOWS } from '../styles/spacing';
+import {
+  exportBackup, importBackupFile, mergeBackupData,
+} from '../services/exportService';
+import {
+  getSavedGoogleUser, restoreLatestBackupFromDrive, signInWithGoogle, signOutGoogle, uploadBackupToDrive,
+} from '../services/googleDriveService';
 
-interface SettingsScreenProps {
-  navigation: any;
-}
+export default function SettingsScreen({ navigation }: any) {
+  const dark = useLabStore((s)=>s.darkMode);
+  const theme = useLabStore((s)=>s.theme);
+  const familyKey = useLabStore((s)=>s.fontFamily);
+  const size = useLabStore((s)=>s.fontSize);
+  const settings = useLabStore((s)=>s.settings);
+  const patients = useLabStore((s)=>s.patients);
+  const auditLog = useLabStore((s)=>s.auditLog);
+  const updateSettings = useLabStore((s)=>s.updateSettings);
+  const replacePatients = useLabStore((s)=>s.replacePatients);
+  const replaceAuditLog = useLabStore((s)=>s.replaceAuditLog);
+  const clearAllData = useLabStore((s)=>s.clearAllData);
 
-export default function SettingsScreen({ navigation }: SettingsScreenProps) {
-  const isDark = useLabStore((s) => s.darkMode);
-  const themeType = useLabStore((s) => s.theme);
-  const fontSize = useLabStore((s) => s.fontSize);
-  const settings = useLabStore((s) => s.settings);
-  const toggleDarkMode = useLabStore((s) => s.toggleDarkMode);
-  const setTheme = useLabStore((s) => s.setTheme);
-  const setFontSize = useLabStore((s) => s.setFontSize);
-  const updateSettings = useLabStore((s) => s.updateSettings);
+  const colors = getColors(dark,theme);
+  const styles = createStyles(colors,resolveFontFamily(familyKey),fontScale(size));
+  const [center,setCenter]=useState(settings.center || '');
+  const [directorate,setDirectorate]=useState(settings.directorate || '');
+  const [googleUser,setGoogleUser]=useState<any>(null);
+  const [busy,setBusy]=useState(false);
 
-  const colors = getColors(isDark, themeType);
-  const styles = createStyles(colors);
+  useEffect(()=>{setCenter(settings.center||'');setDirectorate(settings.directorate||'');},[settings.center,settings.directorate]);
+  useEffect(()=>{getSavedGoogleUser().then(setGoogleUser).catch(()=>{});},[]);
 
-  const [centerName, setCenterName] = useState(settings.center);
-  const [directorate, setDirectorate] = useState(settings.directorate);
-
-  const handleSaveSettings = async () => {
-    await updateSettings({
-      center: centerName,
-      directorate: directorate,
-    });
+  const saveLab = async()=>{
+    await updateSettings({center:center.trim()||'مختبري',directorate:directorate.trim()||'الإدارة'});
+    Alert.alert('تم الحفظ','تم حفظ معلومات المختبر.');
   };
 
-  return (
-    <SafeAreaView style={[styles.container]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {/* ===== BASIC SETTINGS SECTION ===== */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🏥 معلومات المختبر</Text>
+  const localBackup=async()=>{try{setBusy(true);await exportBackup(patients,settings,auditLog);Alert.alert('تم','تم إنشاء النسخة الاحتياطية.')}catch(e:any){Alert.alert('خطأ',e?.message||'تعذر إنشاء النسخة.')}finally{setBusy(false)}};
+  const localRestore=async()=>{
+    try{
+      setBusy(true);
+      const data:any=await importBackupFile();
+      if(!data || !Array.isArray(data.patients)) throw new Error('ملف النسخة غير صالح.');
+      const merged=mergeBackupData(patients,data.patients);
+      await replacePatients(merged);
+      if(Array.isArray(data.auditLog)) await replaceAuditLog(data.auditLog);
+      if(data.settings) await updateSettings(data.settings);
+      Alert.alert('تم الاسترجاع',`تم استرجاع البيانات. عدد السجلات: ${merged.length}`);
+    }catch(e:any){if(e?.message!=='User canceled')Alert.alert('خطأ',e?.message||'تعذر الاسترجاع.')}finally{setBusy(false)}
+  };
+  const driveBackup=async()=>{
+    try{
+      setBusy(true);
+      const session=await signInWithGoogle();
+      const payload={app:'lab-app' as const,version:3,exportedAt:new Date().toISOString(),patients,settings,auditLog};
+      await uploadBackupToDrive(payload as any);
+      setGoogleUser(session.user);
+      await updateSettings({lastBackup:new Date().toISOString()});
+      Alert.alert('تم','تم رفع نسخة احتياطية إلى Google Drive.');
+    }catch(e:any){Alert.alert('خطأ',e?.message||'تعذر النسخ إلى Google Drive.')}finally{setBusy(false)}
+  };
+  const driveRestore=async()=>{
+    try{
+      setBusy(true);
+      const data:any=await restoreLatestBackupFromDrive();
+      if(!data) throw new Error('لا توجد نسخة احتياطية في Google Drive.');
+      await replacePatients(Array.isArray(data.patients)?data.patients:[]);
+      if(Array.isArray(data.auditLog)) await replaceAuditLog(data.auditLog);
+      if(data.settings) await updateSettings(data.settings);
+      Alert.alert('تم','تم استرجاع آخر نسخة من Google Drive.');
+    }catch(e:any){Alert.alert('خطأ',e?.message||'تعذر الاسترجاع من Google Drive.')}finally{setBusy(false)}
+  };
+  const driveSignOut=async()=>{await signOutGoogle();setGoogleUser(null);Alert.alert('تم','تم تسجيل الخروج من Google Drive.')};
+  const wipe=()=>Alert.alert('حذف جميع البيانات','سيتم حذف المرضى وسجل التعديلات من الجهاز. لا يمكن التراجع.',[
+    {text:'إلغاء',style:'cancel'},{text:'حذف نهائي',style:'destructive',onPress:async()=>{await clearAllData();Alert.alert('تم','تم حذف البيانات المحلية.')}}]);
 
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>اسم المركز</Text>
-            <TextInput
-              style={styles.input}
-              value={centerName}
-              onChangeText={setCenterName}
-              placeholder="أدخل اسم المركز"
-              placeholderTextColor={colors.inkSub}
-            />
-          </View>
+  return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.hero}><View style={{flex:1}}><Text style={styles.kicker}>التحكم</Text><Text style={styles.title}>إعدادات المختبر</Text><Text style={styles.subtitle}>إعدادات منفصلة وواضحة بدل شاشة مزدحمة.</Text></View></View>
 
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>الإدارة/الفرع</Text>
-            <TextInput
-              style={styles.input}
-              value={directorate}
-              onChangeText={setDirectorate}
-              placeholder="أدخل اسم الإدارة"
-              placeholderTextColor={colors.inkSub}
-            />
-          </View>
+    <Section title="معلومات المختبر" styles={styles}>
+      <Field label="اسم المختبر / المركز" value={center} onChangeText={setCenter} styles={styles}/>
+      <Field label="الإدارة / الفرع" value={directorate} onChangeText={setDirectorate} styles={styles}/>
+      <Action label="حفظ معلومات المختبر" onPress={saveLab} styles={styles} primary/>
+    </Section>
 
-          <ThemedButton
-            title="حفظ المعلومات"
-            variant="primary"
-            icon="💾"
-            onPress={handleSaveSettings}
-          />
-        </View>
+    <Section title="المظهر" subtitle="الثيم، الخط، الحجم والكثافة" styles={styles}>
+      <NavRow title="إعدادات المظهر" subtitle="الثيمات والألوان وحجم الخط ونوعه" onPress={()=>navigation.navigate('Appearance')} styles={styles}/>
+    </Section>
 
-        {/* ===== APPEARANCE SECTION ===== */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎨 تخصيص الواجهة</Text>
+    <Section title="التقارير والطباعة" subtitle="كل خيارات التقرير في صفحة مستقلة" styles={styles}>
+      <NavRow title="إعدادات الطباعة" subtitle="A4/A5، الاتجاه، الهوامش، الشعار ومحتوى التقرير" onPress={()=>navigation.navigate('PrintSettings')} styles={styles}/>
+      <NavRow title="طباعة عدة تقارير" subtitle="حدد المرضى واختر 1 أو 2 أو 3 أو 4 تقارير بالصفحة" onPress={()=>navigation.navigate('MultiPrint')} styles={styles}/>
+    </Section>
 
-          {/* Dark Mode Toggle */}
-          <View style={styles.settingItemRow}>
-            <View>
-              <Text style={styles.settingLabel}>الوضع الليلي</Text>
-              <Text style={styles.settingDescription}>تفعيل الألوان الداكنة</Text>
-            </View>
-            <Switch
-              value={isDark}
-              onValueChange={toggleDarkMode}
-              trackColor={{ false: colors.line, true: colors.seal }}
-              thumbColor={isDark ? colors.seal : colors.inkSub}
-            />
-          </View>
+    <Section title="النسخ الاحتياطي والبيانات" styles={styles}>
+      <Action label="تصدير نسخة احتياطية" onPress={localBackup} styles={styles}/>
+      <Action label="استيراد نسخة احتياطية" onPress={localRestore} styles={styles}/>
+      <Action label="حذف جميع البيانات المحلية" onPress={wipe} styles={styles} danger/>
+    </Section>
 
-          {/* Theme Presets */}
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>ألوان البرنامج الجاهزة</Text>
-            <View style={styles.themePresets}>
-              {Object.entries(THEME_PRESETS).map(([key, preset]) => (
-                <TouchableOpacity
-                  key={key}
-                  style={[
-                    styles.themePresetButton,
-                    { backgroundColor: preset.color },
-                    themeType === key && styles.themePresetActive,
-                  ]}
-                  onPress={() => setTheme(key as ColorThemeType)}
-                >
-                  {themeType === key && <Text style={styles.checkmark}>✓</Text>}
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.settingDescription}>
-              لون مخصص (اختياري): {themeType}
-            </Text>
-          </View>
+    <Section title="Google Drive" subtitle={googleUser ? `متصل: ${googleUser.email || googleUser.name}` : 'غير متصل'} styles={styles}>
+      {!googleUser ? <Action label="تسجيل الدخول إلى Google" onPress={async()=>{try{setBusy(true);const s=await signInWithGoogle();setGoogleUser(s.user);Alert.alert('تم','تم تسجيل الدخول.')}catch(e:any){Alert.alert('خطأ',e?.message||'تعذر تسجيل الدخول.')}finally{setBusy(false)}}} styles={styles} primary/> :
+      <><Action label="رفع نسخة إلى Google Drive" onPress={driveBackup} styles={styles} primary/><Action label="استرجاع آخر نسخة من Google Drive" onPress={driveRestore} styles={styles}/><Action label="تسجيل الخروج من Google" onPress={driveSignOut} styles={styles} danger/></>}
+    </Section>
 
-          {/* Font Size */}
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>حجم الخط الإجمالي</Text>
-            <View style={styles.fontSizeButtons}>
-              {['small', 'medium', 'large'].map((size) => (
-                <TouchableOpacity
-                  key={size}
-                  style={[
-                    styles.fontSizeButton,
-                    fontSize === size && styles.fontSizeButtonActive,
-                  ]}
-                  onPress={() => setFontSize(size as 'small' | 'medium' | 'large')}
-                >
-                  <Text
-                    style={[
-                      styles.fontSizeButtonText,
-                      fontSize === size && styles.fontSizeButtonTextActive,
-                    ]}
-                  >
-                    {size === 'small' ? 'صغير' : size === 'medium' ? 'متوسط' : 'كبير'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.fontSizeValue}>
-              الحجم الحالي: {fontSize === 'small' ? 'صغير' : fontSize === 'medium' ? 'متوسط' : 'كبير'}
-            </Text>
-          </View>
-
-          {/* Display Density */}
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>كثافة عرض البطاقات</Text>
-            <View style={styles.densityButtons}>
-              {['مريح', 'مضغوط'].map((density) => (
-                <TouchableOpacity
-                  key={density}
-                  style={[styles.densityButton]}
-                  onPress={() => {}}
-                >
-                  <Text style={styles.densityButtonText}>{density}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* ===== ADVANCED SETTINGS SECTION ===== */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚙️ الإعدادات المتقدمة</Text>
-
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>شكل شعار المختبر</Text>
-            <View style={styles.logoShapeButtons}>
-              {['دائري', 'مربع دائري', 'مربع'].map((shape) => (
-                <TouchableOpacity
-                  key={shape}
-                  style={[styles.logoShapeButton]}
-                  onPress={() => {}}
-                >
-                  <Text style={styles.logoShapeButtonText}>{shape}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>موضع شعار المختبر</Text>
-            <View style={styles.logoPositionButtons}>
-              {['سياسي', 'عضوي'].map((position) => (
-                <TouchableOpacity
-                  key={position}
-                  style={[styles.logoPositionButton]}
-                  onPress={() => {}}
-                >
-                  <Text style={styles.logoPositionButtonText}>{position}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>حجم شعار المختبر</Text>
-            <View style={styles.logoSizeButtons}>
-              {['صغير', 'متوسط', 'كبير', 'كبير جداً'].map((size) => (
-                <TouchableOpacity
-                  key={size}
-                  style={[styles.logoSizeButton]}
-                  onPress={() => {}}
-                >
-                  <Text style={styles.logoSizeButtonText}>{size}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Logo Border Toggle */}
-          <View style={styles.settingItemRow}>
-            <View>
-              <Text style={styles.settingLabel}>إظهار إطار حول الشعار</Text>
-              <Text style={styles.settingDescription}>إضافة حدود حول الشعار</Text>
-            </View>
-            <Switch
-              value={false}
-              onValueChange={() => {}}
-              trackColor={{ false: colors.line, true: colors.seal }}
-              thumbColor={colors.seal}
-            />
-          </View>
-        </View>
-
-        {/* ===== BACKUP & DATA SECTION ===== */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>💾 النسخ الاحتياطي والبيانات</Text>
-
-          <ThemedButton
-            title="عمل نسخة احتياطية الآن"
-            variant="secondary"
-            icon="☁️"
-            onPress={() => {}}
-          />
-
-          <ThemedButton
-            title="استرجاع من النسخة"
-            variant="secondary"
-            icon="↩️"
-            style={{ marginTop: SPACING[2] }}
-            onPress={() => {}}
-          />
-
-          <ThemedButton
-            title="تصدير البيانات"
-            variant="secondary"
-            icon="📤"
-            style={{ marginTop: SPACING[2] }}
-            onPress={() => {}}
-          />
-
-          <ThemedButton
-            title="حذف جميع البيانات"
-            variant="danger"
-            icon="🗑️"
-            style={{ marginTop: SPACING[2] }}
-            onPress={() => {}}
-          />
-        </View>
-
-        {/* ===== INFO SECTION ===== */}
-        <View style={[styles.section, styles.infoSection]}>
-          <Text style={styles.infoTitle}>📱 معلومات التطبيق</Text>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>الإصدار</Text>
-            <Text style={styles.infoValue}>1.0.0</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>آخر تحديث</Text>
-            <Text style={styles.infoValue}>23 سبتمبر 2026</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>المطور</Text>
-            <Text style={styles.infoValue}>فريق التطوير</Text>
-          </View>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+    <Section title="معلومات التطبيق" styles={styles}>
+      <Info label="الإصدار" value="1.0.0" styles={styles}/>
+      <Info label="السجلات الحالية" value={String(patients.length)} styles={styles}/>
+      <Info label="سجل التعديلات" value={String(auditLog.length)} styles={styles}/>
+    </Section>
+  </ScrollView>{busy&&<View style={styles.busy}><Text style={styles.busyText}>جارٍ تنفيذ العملية…</Text></View>}</SafeAreaView>;
 }
 
-// ===== STYLES =====
-const createStyles = (colors: ReturnType<typeof getColors>) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.paper,
-    },
-    content: {
-      paddingBottom: SPACING[8],
-    },
+function Section({title,subtitle,children,styles}:{title:string;subtitle?:string;children:any;styles:any}){return <View style={styles.section}><Text style={styles.sectionTitle}>{title}</Text>{subtitle?<Text style={styles.sectionSubtitle}>{subtitle}</Text>:null}{children}</View>}
+function Field({label,value,onChangeText,styles}:{label:string;value:string;onChangeText:(v:string)=>void;styles:any}){return <View style={{marginBottom:10}}><Text style={styles.label}>{label}</Text><TextInput value={value} onChangeText={onChangeText} style={styles.input}/></View>}
+function Action({label,onPress,styles,primary=false,danger=false}:{label:string;onPress:()=>void;styles:any;primary?:boolean;danger?:boolean}){return <TouchableOpacity onPress={onPress} style={[styles.action,primary&&styles.actionPrimary,danger&&styles.actionDanger]}><Text style={[styles.actionText,primary&&styles.actionPrimaryText,danger&&styles.actionDangerText]}>{label}</Text><Text style={styles.arrow}>‹</Text></TouchableOpacity>}
+function NavRow({title,subtitle,onPress,styles}:{title:string;subtitle:string;onPress:()=>void;styles:any}){return <TouchableOpacity onPress={onPress} style={styles.navRow}><View style={{flex:1}}><Text style={styles.navTitle}>{title}</Text><Text style={styles.navSubtitle}>{subtitle}</Text></View><Text style={styles.arrow}>‹</Text></TouchableOpacity>}
+function Info({label,value,styles}:{label:string;value:string;styles:any}){return <View style={styles.info}><Text style={styles.infoLabel}>{label}</Text><Text style={styles.infoValue}>{value}</Text></View>}
 
-    // ===== Section =====
-    section: {
-      paddingHorizontal: SPACING[4],
-      paddingVertical: SPACING[4],
-      borderBottomWidth: 1,
-      borderBottomColor: colors.line,
-    },
-    sectionTitle: {
-      fontSize: 16,
-      fontWeight: '800',
-      color: colors.navy,
-      marginBottom: SPACING[4],
-      fontFamily: 'Tajawal-Bold',
-    },
-
-    // ===== Setting Item =====
-    settingItem: {
-      marginBottom: SPACING[4],
-    },
-    settingItemRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: SPACING[3],
-      borderBottomWidth: 1,
-      borderBottomColor: colors.line,
-    },
-    settingLabel: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: colors.ink,
-      marginBottom: SPACING[1],
-      fontFamily: 'Tajawal-Bold',
-    },
-    settingDescription: {
-      fontSize: 12,
-      color: colors.inkSub,
-      fontFamily: 'Tajawal',
-    },
-
-    // ===== Input =====
-    input: {
-      backgroundColor: colors.panel,
-      borderWidth: 1,
-      borderColor: colors.line,
-      borderRadius: BORDER_RADIUS.md,
-      paddingHorizontal: SPACING[3],
-      paddingVertical: SPACING[2],
-      color: colors.ink,
-      fontSize: 14,
-      textAlign: 'right',
-      fontFamily: 'Tajawal',
-    },
-
-    // ===== Theme Presets =====
-    themePresets: {
-      flexDirection: 'row',
-      gap: SPACING[2],
-      marginVertical: SPACING[3],
-      justifyContent: 'center',
-    },
-    themePresetButton: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
-      borderWidth: 2,
-      borderColor: 'transparent',
-    },
-    themePresetActive: {
-      borderColor: colors.ink,
-      ...SHADOWS.md,
-    },
-    checkmark: {
-      color: '#FFFFFF',
-      fontSize: 20,
-      fontWeight: '900',
-      textAlign: 'center',
-      lineHeight: 48,
-    },
-
-    // ===== Font Size =====
-    fontSizeButtons: {
-      flexDirection: 'row',
-      gap: SPACING[2],
-      marginVertical: SPACING[3],
-    },
-    fontSizeButton: {
-      flex: 1,
-      paddingVertical: SPACING[2],
-      paddingHorizontal: SPACING[2],
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.panel,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    fontSizeButtonActive: {
-      backgroundColor: colors.seal,
-      borderColor: colors.seal,
-    },
-    fontSizeButtonText: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.ink,
-      fontFamily: 'Tajawal',
-    },
-    fontSizeButtonTextActive: {
-      color: '#FFFFFF',
-      fontWeight: '700',
-    },
-    fontSizeValue: {
-      fontSize: 12,
-      color: colors.seal,
-      fontWeight: '600',
-      marginTop: SPACING[2],
-      textAlign: 'center',
-      fontFamily: 'Tajawal',
-    },
-
-    // ===== Density Buttons =====
-    densityButtons: {
-      flexDirection: 'row',
-      gap: SPACING[2],
-      marginVertical: SPACING[3],
-    },
-    densityButton: {
-      flex: 1,
-      paddingVertical: SPACING[2],
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.panel,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    densityButtonText: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.ink,
-      fontFamily: 'Tajawal',
-    },
-
-    // ===== Logo Shape Buttons =====
-    logoShapeButtons: {
-      flexDirection: 'row',
-      gap: SPACING[2],
-      marginVertical: SPACING[3],
-    },
-    logoShapeButton: {
-      flex: 1,
-      paddingVertical: SPACING[2],
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.panel,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    logoShapeButtonText: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.ink,
-      fontFamily: 'Tajawal',
-    },
-
-    // ===== Logo Position Buttons =====
-    logoPositionButtons: {
-      flexDirection: 'row',
-      gap: SPACING[2],
-      marginVertical: SPACING[3],
-    },
-    logoPositionButton: {
-      flex: 1,
-      paddingVertical: SPACING[2],
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.panel,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    logoPositionButtonText: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.ink,
-      fontFamily: 'Tajawal',
-    },
-
-    // ===== Logo Size Buttons =====
-    logoSizeButtons: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: SPACING[2],
-      marginVertical: SPACING[3],
-    },
-    logoSizeButton: {
-      flex: 1,
-      minWidth: '48%',
-      paddingVertical: SPACING[2],
-      borderRadius: BORDER_RADIUS.md,
-      borderWidth: 1,
-      borderColor: colors.line,
-      backgroundColor: colors.panel,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    logoSizeButtonText: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: colors.ink,
-      fontFamily: 'Tajawal',
-    },
-
-    // ===== Info Section =====
-    infoSection: {
-      backgroundColor: colors.panel,
-      borderRadius: BORDER_RADIUS.lg,
-      marginHorizontal: SPACING[4],
-      borderWidth: 1,
-      borderColor: colors.line,
-    },
-    infoTitle: {
-      fontSize: 14,
-      fontWeight: '800',
-      color: colors.navy,
-      marginBottom: SPACING[3],
-      fontFamily: 'Tajawal-Bold',
-    },
-    infoItem: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      paddingVertical: SPACING[2],
-      borderBottomWidth: 1,
-      borderBottomColor: colors.line,
-    },
-    infoLabel: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: colors.inkSub,
-      fontFamily: 'Tajawal',
-    },
-    infoValue: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: colors.ink,
-      fontFamily: 'Tajawal-Bold',
-    },
-  });
- 
+const createStyles=(c:any,f:string,s:number)=>StyleSheet.create({
+ container:{flex:1,backgroundColor:c.paper},content:{paddingBottom:36},hero:{backgroundColor:c.headerBg,padding:20},kicker:{color:'#B7E8E2',fontSize:11*s,fontWeight:'700',fontFamily:f},title:{color:'#fff',fontSize:25*s,fontWeight:'900',fontFamily:f,marginTop:3},subtitle:{color:'#D7EFEC',fontSize:11*s,fontFamily:f,marginTop:5},section:{margin:14,padding:16,borderRadius:18,backgroundColor:c.panel,borderWidth:1,borderColor:c.line,...SHADOWS.sm},sectionTitle:{fontSize:16*s,fontWeight:'900',color:c.ink,fontFamily:f},sectionSubtitle:{fontSize:11*s,color:c.inkSub,fontFamily:f,marginTop:3,marginBottom:10},label:{fontSize:12*s,fontWeight:'800',color:c.ink,fontFamily:f,marginBottom:6},input:{minHeight:46,borderRadius:13,borderWidth:1,borderColor:c.line,backgroundColor:c.paper,paddingHorizontal:12,color:c.ink,textAlign:'right',fontFamily:f,fontSize:13*s},action:{minHeight:48,borderRadius:13,borderWidth:1,borderColor:c.line,backgroundColor:c.paper,flexDirection:'row',alignItems:'center',paddingHorizontal:14,marginTop:8},actionPrimary:{backgroundColor:c.navy,borderColor:c.navy},actionDanger:{backgroundColor:c.danger,borderColor:c.danger},actionText:{flex:1,color:c.ink,fontSize:13*s,fontWeight:'800',fontFamily:f},actionPrimaryText:{color:'#fff'},actionDangerText:{color:'#fff'},arrow:{color:c.navy,fontSize:26,fontWeight:'400'},navRow:{minHeight:62,borderRadius:14,backgroundColor:c.paper,borderWidth:1,borderColor:c.line,paddingHorizontal:14,marginTop:8,flexDirection:'row',alignItems:'center'},navTitle:{color:c.ink,fontSize:13*s,fontWeight:'900',fontFamily:f},navSubtitle:{color:c.inkSub,fontSize:10.5*s,fontFamily:f,marginTop:3},info:{flexDirection:'row',justifyContent:'space-between',paddingVertical:10,borderBottomWidth:1,borderBottomColor:c.line},infoLabel:{color:c.inkSub,fontFamily:f,fontSize:11*s},infoValue:{color:c.ink,fontFamily:f,fontSize:12*s,fontWeight:'900'},busy:{position:'absolute',left:20,right:20,bottom:20,padding:14,borderRadius:14,backgroundColor:c.headerBg,alignItems:'center'},busyText:{color:'#fff',fontFamily:f,fontWeight:'800'}
+});

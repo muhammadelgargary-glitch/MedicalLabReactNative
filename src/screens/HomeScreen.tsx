@@ -1,506 +1,195 @@
-// src/screens/HomeScreen.tsx - شاشة رئيسية احترافية
-
-import React, { useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  ScrollView,
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  SafeAreaView,
-  ActivityIndicator,
-  FlatList,
+  Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { useLabStore, Patient } from '../store/useLabStore';
-import { createTheme } from '../styles/theme';
 import { getColors } from '../styles/colors';
-import { SPACING, BORDER_RADIUS, SHADOWS, FLEX_CENTERS } from '../styles/spacing';
-import { StatsCard } from '../components/PatientCard';
-import ThemedButton from '../components/ThemedButton';
+import { BORDER_RADIUS, SHADOWS, SPACING } from '../styles/spacing';
+import { resolveFontFamily, fontScale } from '../styles/design';
 import { PatientCard } from '../components/PatientCard';
+import ThemedButton from '../components/ThemedButton';
+import { exportPatientsExcel, exportStatsPdf, getStats } from '../services/exportService';
 
-interface HomeScreenProps {
-  navigation: any;
-}
-
-export default function HomeScreen({ navigation }: HomeScreenProps) {
+export default function HomeScreen({ navigation }: any) {
   const patients = useLabStore((s) => s.patients);
   const settings = useLabStore((s) => s.settings);
   const isDark = useLabStore((s) => s.darkMode);
   const themeType = useLabStore((s) => s.theme);
-
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filteredPatients, setFilteredPatients] = useState<Patient[]>(patients);
+  const fontFamily = useLabStore((s) => s.fontFamily);
+  const fontSize = useLabStore((s) => s.fontSize);
 
   const colors = getColors(isDark, themeType);
-  const theme = createTheme(isDark, themeType);
-  const styles = createStyles(colors);
+  const styles = createStyles(colors, resolveFontFamily(fontFamily), fontScale(fontSize));
 
-  useEffect(() => {
-    const filtered = patients.filter(
-      (p) =>
-        p.name.includes(searchQuery) ||
-        p.seq.includes(searchQuery) ||
-        p.id.includes(searchQuery)
-    );
-    setFilteredPatients(filtered);
-  }, [searchQuery, patients]);
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'today' | 'blood' | 'chem' | 'urine' | 'serology' | 'stool' | 'preg'>('all');
+  const [busy, setBusy] = useState(false);
 
-  const getStats = () => {
-    return {
-      today: patients.filter((p) => p.date === new Date().toISOString().split('T')[0]).length,
-      total: patients.length,
-      blood: patients.filter((p) => p.includeBlood).length,
-      chem: patients.filter((p) => p.includeChem).length,
-      urine: patients.filter((p) => p.includeUrine).length,
-      serology: patients.filter((p) => p.includeSerology).length,
-      stool: patients.filter((p) => p.includeStool).length,
-      preg: patients.filter((p) => p.includePreg).length,
-    };
+  const stats = useMemo(() => ({
+    today: patients.filter((p) => p.date === new Date().toISOString().slice(0, 10)).length,
+    total: patients.length,
+    blood: patients.filter((p) => p.includeBlood).length,
+    chem: patients.filter((p) => p.includeChem).length,
+    urine: patients.filter((p) => p.includeUrine).length,
+    serology: patients.filter((p) => p.includeSerology).length,
+    stool: patients.filter((p) => p.includeStool).length,
+    preg: patients.filter((p) => p.includePreg).length,
+  }), [patients]);
+
+  const filtered = useMemo(() => patients.filter((p) => {
+    const q = query.trim().toLowerCase();
+    const matches = !q || `${p.name} ${p.seq} ${p.id}`.toLowerCase().includes(q);
+    if (!matches) return false;
+    if (filter === 'all') return true;
+    if (filter === 'today') return p.date === new Date().toISOString().slice(0, 10);
+    return Boolean((p as any)[`include${filter[0].toUpperCase()}${filter.slice(1)}`]);
+  }), [patients, query, filter]);
+
+  const run = async (fn: () => Promise<any>, message: string) => {
+    try { setBusy(true); await fn(); Alert.alert('تم', message); }
+    catch (e: any) { Alert.alert('خطأ', e?.message || 'تعذر تنفيذ العملية'); }
+    finally { setBusy(false); }
   };
 
-  const stats = getStats();
+  const filters = [
+    ['all', 'الكل'], ['today', 'اليوم'], ['blood', 'دم'], ['chem', 'كيمياء'],
+    ['urine', 'بول'], ['serology', 'أمصال'], ['stool', 'براز'], ['preg', 'حمل'],
+  ] as const;
 
-  const navigationItems = [
-    { icon: '👤', label: 'مريض جديد', action: () => navigation.navigate('PatientForm') },
-    { icon: '⚙️', label: 'الإعدادات', action: () => navigation.navigate('Settings') },
-    { icon: '💰', label: 'التمويل', action: () => {} },
-    { icon: '📁', label: 'الملفات', action: () => {} },
-    { icon: '📋', label: 'التقارير', action: () => navigation.navigate('Stats') },
-    { icon: '📊', label: 'الإحصائيات', action: () => navigation.navigate('Stats') },
-    { icon: '🎨', label: 'التخصيص', action: () => navigation.navigate('Settings') },
-    { icon: '🌙', label: 'الوضع الليلي', action: () => {} },
+  const statCards = [
+    ['مرضى اليوم', stats.today, colors.navy],
+    ['إجمالي المرضى', stats.total, colors.seal],
+    ['الدم', stats.blood, '#D92D20'],
+    ['الكيمياء', stats.chem, '#6941C6'],
+    ['البول', stats.urine, '#1570EF'],
+    ['الأمصال', stats.serology, '#DC6803'],
   ];
 
   return (
-    <SafeAreaView style={[styles.container]}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.contentContainer}
-      >
-        {/* ===== HEADER ===== */}
-        <View style={styles.headerContainer}>
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>{settings.center || 'مختبري'}</Text>
-            <Text style={styles.headerSubtitle}>معلومات المختبر</Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+        <View style={styles.hero}>
+          <View style={styles.heroText}>
+            <Text style={styles.kicker}>لوحة المختبر</Text>
+            <Text style={styles.title}>{settings.center || 'مختبر طبي'}</Text>
+            <Text style={styles.subtitle}>إدارة المرضى والنتائج والتقارير من مكان واحد</Text>
           </View>
-          <TouchableOpacity style={styles.headerLogo}>
-            <Text style={styles.logoText}>🧪 LAB</Text>
+          <TouchableOpacity style={styles.menuButton} onPress={() => navigation.navigate('Settings')}>
+            <Text style={styles.menuGlyph}>☰</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ===== NAVIGATION PILLS ===== */}
-        <FlatList
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          scrollEventThrottle={16}
-          data={navigationItems}
-          keyExtractor={(item) => item.label}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.navPill, { marginRight: SPACING[2] }]}
-              onPress={item.action}
-            >
-              <Text style={styles.navPillIcon}>{item.icon}</Text>
-            </TouchableOpacity>
-          )}
-          contentContainerStyle={styles.navPillsContainer}
-        />
-
-        {/* ===== SEARCH BAR ===== */}
-        <View style={styles.searchContainer}>
+        <View style={styles.searchBox}>
+          <Text style={styles.searchGlyph}>⌕</Text>
           <TextInput
-            style={styles.searchInput}
-            placeholder="بحث باسم أو رقم السجل أو الفحص"
+            value={query}
+            onChangeText={setQuery}
+            placeholder="ابحث باسم المريض أو رقم السجل"
             placeholderTextColor={colors.inkSub}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
+            style={styles.searchInput}
           />
-          <TouchableOpacity style={styles.searchButton}>
-            <Text style={styles.searchIcon}>🔍</Text>
+        </View>
+
+        <View style={styles.primaryActions}>
+          <ThemedButton title="إضافة مريض" icon="＋" size="lg" onPress={() => navigation.navigate('PatientForm')} style={{ flex: 1 }} fullWidth={false} />
+          <ThemedButton title="طباعة عدة تقارير" icon="▤" variant="secondary" size="lg" onPress={() => navigation.navigate('MultiPrint')} style={{ flex: 1 }} fullWidth={false} />
+        </View>
+
+        <View style={styles.secondaryActions}>
+          <ThemedButton title="Excel" icon="⇩" variant="outline" onPress={() => run(() => exportPatientsExcel(patients), 'تم تصدير ملف Excel')} style={{ flex: 1 }} fullWidth={false} />
+          <ThemedButton title="PDF الإحصائيات" icon="▤" variant="outline" onPress={() => run(() => exportStatsPdf(getStats(patients), settings), 'تم إنشاء ملف الإحصائيات')} style={{ flex: 1 }} fullWidth={false} />
+        </View>
+
+        <View style={styles.sectionHeading}>
+          <View>
+            <Text style={styles.sectionTitle}>ملخص اليوم</Text>
+            <Text style={styles.sectionHint}>نظرة سريعة على نشاط المختبر</Text>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('Stats')}>
+            <Text style={styles.link}>التفاصيل</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ===== ACTION BUTTONS ===== */}
-        <View style={styles.actionGrid}>
-          <ThemedButton
-            title="+ إضافة مريض"
-            variant="primary"
-            size="lg"
-            icon="➕"
-            onPress={() => navigation.navigate('PatientForm')}
-          />
-          <ThemedButton
-            title="قيد الإنجاز"
-            variant="secondary"
-            size="lg"
-            icon="✏️"
-            onPress={() => {}}
-          />
-        </View>
-
-        {/* ===== EXPORT BUTTONS ===== */}
-        <View style={styles.exportGrid}>
-          <ThemedButton
-            title="تصدير الكل Excel"
-            variant="success"
-            icon="📊"
-            fullWidth={false}
-            style={{ flex: 1 }}
-          />
-          <ThemedButton
-            title="طباعة عدة تقارير"
-            variant="secondary"
-            icon="🖨️"
-            fullWidth={false}
-            style={{ flex: 1 }}
-          />
-        </View>
-
-        <View style={styles.exportGrid}>
-          <ThemedButton
-            title="تصدير الكل PDF"
-            variant="primary"
-            icon="📄"
-            fullWidth={false}
-            style={{ flex: 1 }}
-          />
-          <ThemedButton
-            title="البيانات محفوظة"
-            variant="secondary"
-            icon="✅"
-            fullWidth={false}
-            style={{ flex: 1 }}
-          />
-        </View>
-
-        {/* ===== QUICK STATS ===== */}
-        <View style={styles.statsHeader}>
-          <Text style={styles.statsTitle}>إحصائيات سريعة</Text>
-        </View>
-
         <View style={styles.statsGrid}>
-          <StatsCard
-            title="مرضى اليوم"
-            value={stats.today}
-            icon="👤"
-            color={colors.navy}
-          />
-          <StatsCard
-            title="إجمالي المرضى"
-            value={stats.total}
-            icon="📋"
-            color={colors.seal}
-          />
+          {statCards.map(([label, value, color]) => (
+            <View key={String(label)} style={[styles.statCard, { borderTopColor: color as string }]}>
+              <Text style={styles.statValue}>{value}</Text>
+              <Text style={styles.statLabel}>{label}</Text>
+            </View>
+          ))}
         </View>
 
-        <View style={styles.statsGrid}>
-          <StatsCard
-            title="فحوصات الدم"
-            value={stats.blood}
-            icon="🩸"
-            color="#D32F2F"
-          />
-          <StatsCard
-            title="فحوصات كيمياء"
-            value={stats.chem}
-            icon="🧬"
-            color="#7B1FA2"
-          />
+        <View style={styles.sectionHeading}>
+          <View>
+            <Text style={styles.sectionTitle}>السجلات</Text>
+            <Text style={styles.sectionHint}>{filtered.length} سجل ظاهر</Text>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('Catalog')}>
+            <Text style={styles.link}>عرض الكل</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.statsGrid}>
-          <StatsCard
-            title="فحوصات البول"
-            value={stats.urine}
-            icon="💧"
-            color="#0288D1"
-          />
-          <StatsCard
-            title="فحوصات الأمصال"
-            value={stats.serology}
-            icon="🧪"
-            color="#F57C00"
-          />
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+          {filters.map(([id, label]) => (
+            <TouchableOpacity
+              key={id}
+              onPress={() => setFilter(id)}
+              style={[styles.filter, filter === id && styles.filterActive]}
+            >
+              <Text style={[styles.filterText, filter === id && styles.filterTextActive]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
-        <View style={styles.statsGrid}>
-          <StatsCard
-            title="فحوصات البراز"
-            value={stats.stool}
-            icon="🪳"
-            color="#6D4C41"
-          />
-          <StatsCard
-            title="اختبارات الحمل"
-            value={stats.preg}
-            icon="🤰"
-            color="#C2185B"
-          />
-        </View>
-
-        {/* ===== FILTER SECTION ===== */}
-        <View style={styles.filterSection}>
-          <ThemedButton
-            title="جميع السجلات"
-            variant="primary"
-            size="sm"
-            style={{ marginRight: SPACING[2] }}
-          />
-          <ThemedButton
-            title="سجلات اليوم"
-            variant="secondary"
-            size="sm"
-            style={{ marginRight: SPACING[2] }}
-          />
-          <ThemedButton
-            title="دم"
-            variant="secondary"
-            size="sm"
-            style={{ marginRight: SPACING[2] }}
-          />
-          <ThemedButton
-            title="كيمياء"
-            variant="secondary"
-            size="sm"
-          />
-        </View>
-
-        {/* ===== PATIENTS LIST ===== */}
-        <View style={styles.patientsHeader}>
-          <Text style={styles.patientsTitle}>السجلات ({filteredPatients.length})</Text>
-          <Text style={styles.patientsSubtitle}>اسحب لليسار للخيارات</Text>
-        </View>
-
-        {filteredPatients.length > 0 ? (
-          filteredPatients.map((patient) => (
-            <PatientCard
-              key={patient.id}
-              patient={patient}
-              onPress={() => navigation.navigate('PatientReport', { id: patient.id })}
-            />
-          ))
-        ) : (
-          <View style={[styles.emptyState, FLEX_CENTERS.center]}>
-            <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>لا توجد سجلات</Text>
-            <ThemedButton
-              title="إضافة مريض جديد"
-              variant="primary"
-              size="lg"
-              style={{ marginTop: SPACING[4], width: '80%' }}
-              onPress={() => navigation.navigate('PatientForm')}
-            />
+        {filtered.length ? filtered.slice(0, 8).map((p: Patient) => (
+          <PatientCard key={p.id} patient={p} onPress={() => navigation.navigate('PatientReport', { id: p.id })} />
+        )) : (
+          <View style={styles.empty}>
+            <Text style={styles.emptyTitle}>لا توجد سجلات مطابقة</Text>
+            <Text style={styles.emptyText}>غيّر البحث أو أضف مريضًا جديدًا.</Text>
           </View>
         )}
-      </ScrollView>
 
-      {/* ===== FAB - FLOATING ACTION BUTTON ===== */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.seal }]}
-        onPress={() => navigation.navigate('PatientForm')}
-      >
-        <Text style={styles.fabIcon}>➕</Text>
-      </TouchableOpacity>
+        {filtered.length > 8 && (
+          <ThemedButton title={`عرض جميع النتائج (${filtered.length})`} variant="ghost" onPress={() => navigation.navigate('Catalog')} />
+        )}
+      </ScrollView>
+      {busy && <View style={styles.busy}><Text style={styles.busyText}>جارٍ تنفيذ العملية…</Text></View>}
     </SafeAreaView>
   );
 }
 
-// ===== STYLES =====
-const createStyles = (colors: ReturnType<typeof getColors>) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.paper,
-    },
-    contentContainer: {
-      paddingBottom: SPACING[12],
-    },
-
-    // ===== Header =====
-    headerContainer: {
-      backgroundColor: colors.headerBg,
-      paddingHorizontal: SPACING[4],
-      paddingVertical: SPACING[4],
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: SPACING[4],
-    },
-    headerContent: {
-      flex: 1,
-    },
-    headerTitle: {
-      fontSize: 24,
-      fontWeight: '900',
-      color: colors.headerText,
-      fontFamily: 'Tajawal-Bold',
-    },
-    headerSubtitle: {
-      fontSize: 12,
-      color: colors.headerText,
-      opacity: 0.8,
-      marginTop: SPACING[1],
-      fontFamily: 'Tajawal',
-    },
-    headerLogo: {
-      backgroundColor: colors.seal,
-      paddingHorizontal: SPACING[3],
-      paddingVertical: SPACING[2],
-      borderRadius: BORDER_RADIUS.lg,
-    },
-    logoText: {
-      fontSize: 14,
-      fontWeight: '900',
-      color: '#FFFFFF',
-      fontFamily: 'Tajawal-Bold',
-    },
-
-    // ===== Navigation Pills =====
-    navPillsContainer: {
-      paddingHorizontal: SPACING[4],
-      paddingBottom: SPACING[3],
-      gap: SPACING[2],
-    },
-    navPill: {
-      width: 54,
-      height: 54,
-      borderRadius: BORDER_RADIUS['3xl'],
-      backgroundColor: colors.panel,
-      borderWidth: 1,
-      borderColor: colors.line,
-      ...FLEX_CENTERS.center,
-      ...SHADOWS.sm,
-    },
-    navPillIcon: {
-      fontSize: 28,
-    },
-
-    // ===== Search Bar =====
-    searchContainer: {
-      flexDirection: 'row',
-      paddingHorizontal: SPACING[4],
-      marginBottom: SPACING[4],
-      gap: SPACING[2],
-      alignItems: 'center',
-    },
-    searchInput: {
-      flex: 1,
-      backgroundColor: colors.panel,
-      borderWidth: 1,
-      borderColor: colors.line,
-      borderRadius: BORDER_RADIUS.lg,
-      paddingHorizontal: SPACING[3],
-      paddingVertical: SPACING[2],
-      color: colors.ink,
-      fontSize: 14,
-      textAlign: 'right',
-      fontFamily: 'Tajawal',
-    },
-    searchButton: {
-      width: 44,
-      height: 44,
-      borderRadius: BORDER_RADIUS.lg,
-      backgroundColor: colors.seal,
-      ...FLEX_CENTERS.center,
-    },
-    searchIcon: {
-      fontSize: 20,
-    },
-
-    // ===== Action Grid =====
-    actionGrid: {
-      paddingHorizontal: SPACING[4],
-      gap: SPACING[2],
-      marginBottom: SPACING[4],
-    },
-
-    // ===== Export Grid =====
-    exportGrid: {
-      flexDirection: 'row',
-      paddingHorizontal: SPACING[4],
-      gap: SPACING[2],
-      marginBottom: SPACING[3],
-    },
-
-    // ===== Stats =====
-    statsHeader: {
-      paddingHorizontal: SPACING[4],
-      marginBottom: SPACING[3],
-      marginTop: SPACING[2],
-    },
-    statsTitle: {
-      fontSize: 16,
-      fontWeight: '800',
-      color: colors.ink,
-      fontFamily: 'Tajawal-Bold',
-    },
-    statsGrid: {
-      flexDirection: 'row',
-      paddingHorizontal: SPACING[2],
-      marginBottom: SPACING[2],
-      gap: SPACING[2],
-    },
-
-    // ===== Filter Section =====
-    filterSection: {
-      flexDirection: 'row',
-      paddingHorizontal: SPACING[4],
-      marginVertical: SPACING[4],
-      gap: SPACING[2],
-      borderBottomWidth: 1,
-      borderBottomColor: colors.line,
-      paddingBottom: SPACING[4],
-    },
-
-    // ===== Patients List =====
-    patientsHeader: {
-      paddingHorizontal: SPACING[4],
-      marginBottom: SPACING[3],
-      marginTop: SPACING[4],
-    },
-    patientsTitle: {
-      fontSize: 16,
-      fontWeight: '800',
-      color: colors.ink,
-      fontFamily: 'Tajawal-Bold',
-    },
-    patientsSubtitle: {
-      fontSize: 11,
-      color: colors.inkSub,
-      marginTop: SPACING[1],
-      fontFamily: 'Tajawal',
-    },
-
-    // ===== Empty State =====
-    emptyState: {
-      paddingVertical: SPACING[12],
-    },
-    emptyIcon: {
-      fontSize: 56,
-      marginBottom: SPACING[3],
-    },
-    emptyText: {
-      fontSize: 16,
-      color: colors.inkSub,
-      fontFamily: 'Tajawal',
-      marginBottom: SPACING[4],
-    },
-
-    // ===== FAB =====
-    fab: {
-      position: 'absolute',
-      bottom: SPACING[4],
-      right: SPACING[4],
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      ...FLEX_CENTERS.center,
-      ...SHADOWS.lg,
-    },
-    fabIcon: {
-      fontSize: 28,
-    },
-  });
- 
+const createStyles = (colors: any, fontFamily: string, scale: number) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.paper },
+  content: { paddingBottom: 40 },
+  hero: { backgroundColor: colors.headerBg, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 24, flexDirection: 'row', alignItems: 'center' },
+  heroText: { flex: 1 },
+  kicker: { color: '#B7E8E2', fontSize: 12 * scale, fontWeight: '700', fontFamily, marginBottom: 5 },
+  title: { color: '#fff', fontSize: 25 * scale, fontWeight: '900', fontFamily },
+  subtitle: { color: '#D7EFEC', fontSize: 12 * scale, lineHeight: 19, marginTop: 5, fontFamily },
+  menuButton: { width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
+  menuGlyph: { color: '#fff', fontSize: 23 },
+  searchBox: { margin: 16, marginBottom: 10, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.line, borderRadius: 16, minHeight: 50, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, ...SHADOWS.sm },
+  searchGlyph: { fontSize: 24, color: colors.navy, marginRight: 8 },
+  searchInput: { flex: 1, color: colors.ink, fontSize: 14 * scale, textAlign: 'right', fontFamily },
+  primaryActions: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 10 },
+  secondaryActions: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, marginBottom: 22 },
+  sectionHeading: { paddingHorizontal: 16, marginBottom: 10, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  sectionTitle: { color: colors.ink, fontSize: 17 * scale, fontWeight: '900', fontFamily },
+  sectionHint: { color: colors.inkSub, fontSize: 11 * scale, marginTop: 2, fontFamily },
+  link: { color: colors.navy, fontSize: 12 * scale, fontWeight: '800', fontFamily },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, gap: 10, marginBottom: 16 },
+  statCard: { width: '31.7%', minHeight: 88, backgroundColor: colors.panel, borderRadius: 16, padding: 13, borderWidth: 1, borderColor: colors.line, borderTopWidth: 3, ...SHADOWS.sm },
+  statValue: { color: colors.ink, fontSize: 22 * scale, fontWeight: '900', fontFamily },
+  statLabel: { color: colors.inkSub, fontSize: 10.5 * scale, marginTop: 5, fontFamily },
+  filters: { paddingHorizontal: 16, gap: 8, marginBottom: 10 },
+  filter: { paddingHorizontal: 15, minHeight: 38, borderRadius: 20, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
+  filterActive: { backgroundColor: colors.navy, borderColor: colors.navy },
+  filterText: { color: colors.inkSub, fontSize: 12 * scale, fontWeight: '700', fontFamily },
+  filterTextActive: { color: '#fff' },
+  empty: { margin: 16, padding: 28, borderRadius: 18, backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.line, alignItems: 'center' },
+  emptyTitle: { color: colors.ink, fontSize: 16 * scale, fontWeight: '800', fontFamily },
+  emptyText: { color: colors.inkSub, fontSize: 12 * scale, marginTop: 5, fontFamily },
+  busy: { position: 'absolute', left: 20, right: 20, bottom: 20, padding: 14, borderRadius: 14, backgroundColor: colors.headerBg, alignItems: 'center' },
+  busyText: { color: '#fff', fontFamily, fontWeight: '800' },
+});
