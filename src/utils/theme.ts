@@ -1,4 +1,4 @@
-import { LabSettings } from '../store/useLabStore';
+import { Settings } from '../store/useLabStore';
 
 export const THEME_COLORS = {
   default: { primary: '#1d3b36', secondary: '#3e6b4f', accent: '#9c6b3e', accentSoft: '#e3cbae', header: '#0f1f1b' },
@@ -11,7 +11,7 @@ export const THEME_COLORS = {
 
 export type ThemeKey = keyof typeof THEME_COLORS;
 
-export function getTheme(settings?: Partial<LabSettings>) {
+export function getTheme(settings?: any) {
   const key = (settings?.theme || 'default') as ThemeKey;
   const base = THEME_COLORS[key] || THEME_COLORS.default;
   const accent = settings?.customAccent || base.accent;
