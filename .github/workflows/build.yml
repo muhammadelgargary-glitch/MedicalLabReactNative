@@ -3,6 +3,11 @@ name: Build Android APK and Web
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -40,6 +45,22 @@ jobs:
       - name: Check Expo Doctor
         run: |
           npx expo-doctor || true
+
+      - name: Export Web Project
+        run: |
+          npx expo export --platform web
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Web artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+      - name: Deploy Web to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
