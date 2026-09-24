@@ -6,7 +6,8 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "platforms": [
-      "android"
+      "android",
+      "web"
     ],
     "android": {
       "package": "com.medical.lab",
