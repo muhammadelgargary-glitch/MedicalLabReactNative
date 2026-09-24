@@ -14,7 +14,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
 
       - name: Show Node and npm versions
         run: |
@@ -22,41 +22,14 @@ jobs:
           npm --version
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
 
-      - name: Show Expo version
+      - name: Check Expo configuration
         run: |
-          echo "===== Expo CLI version ====="
+          echo "===== Expo version ====="
           npx expo --version
 
-      - name: Verify Expo configuration
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          EXPO_DEBUG: "1"
-        shell: bash
-        run: |
-          echo "========================================"
-          echo "        EXPO CONFIG DIAGNOSTIC"
-          echo "========================================"
-
-          echo ""
-          echo "===== Node ====="
-          node --version
-
-          echo ""
-          echo "===== npm ====="
-          npm --version
-
-          echo ""
-          echo "===== Expo CLI ====="
-          npx expo --version
-
-          echo ""
-          echo "===== Expo Doctor ====="
-          npx expo-doctor || true
-
-          echo ""
-          echo "===== Expo Config ====="
+          echo "===== Expo config ====="
           npx expo config --json
 
       - name: Install EAS CLI
