@@ -18,6 +18,9 @@
         "backgroundColor": "#1d3b36"
       }
     },
+    "experiments": {
+      "baseUrl": "/MedicalLabReactNative"
+    },
     "plugins": [
       "@react-native-google-signin/google-signin"
     ]
