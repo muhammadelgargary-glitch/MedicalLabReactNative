@@ -11,12 +11,22 @@ const LAST_BACKUP_KEY = 'lab_last_drive_backup_ts';
 
 const RETENTION = 5;
 
+/* =========================================================
+   TYPES
+   ========================================================= */
+
 export type GoogleUser = {
   email: string;
   name: string;
   picture?: string;
 };
 
+/*
+ * بيانات النسخة الاحتياطية.
+ *
+ * catalog و prices اختياريان حتى تبقى النسخ القديمة
+ * التي لا تحتوي عليهما قابلة للاستعادة.
+ */
 export type DriveBackupPayload = {
   app: 'lab-app';
   version: number;
@@ -24,6 +34,17 @@ export type DriveBackupPayload = {
   patients: any[];
   settings: any;
   auditLog: any[];
+
+  /* دليل الفحوصات */
+  catalog?: any[];
+
+  /* أسعار الفحوصات */
+  prices?: Record<string, number>;
+
+  /*
+   * السماح بحقول إضافية مستقبلية بدون كسر التوافق.
+   */
+  [key: string]: any;
 };
 
 type GoogleTokenClient = {
@@ -73,6 +94,7 @@ function loadGoogleScript(): Promise<void> {
 
     if (existing) {
       existing.addEventListener('load', () => resolve());
+
       existing.addEventListener('error', () =>
         reject(
           new Error(
@@ -80,6 +102,7 @@ function loadGoogleScript(): Promise<void> {
           )
         )
       );
+
       return;
     }
 
@@ -209,11 +232,13 @@ async function fetchGoogleUser(
 
   return {
     email: data.email || '',
+
     name:
       data.name ||
       data.given_name ||
       data.email ||
       'Google User',
+
     picture:
       data.picture || undefined,
   };
@@ -239,6 +264,7 @@ function requestGoogleAccessToken(
               'لم تتم تهيئة تسجيل الدخول إلى Google.'
             )
           );
+
           return;
         }
 
@@ -389,10 +415,7 @@ export async function restoreGoogleSession(): Promise<{
 
     /*
      * إذا كان هناك مستخدم محفوظ فقط،
-     * نعيده بدون Token.
-     *
-     * لن نستخدمه لعمليات Drive حتى نحصل
-     * على Token جديد.
+     * لا نعتبره جلسة Drive فعالة بدون Token.
      */
 
     void savedUser;
@@ -411,7 +434,6 @@ export async function getDriveAccessToken(): Promise<string> {
 
     /*
      * تحقق بسيط من أن Token ما زال صالحًا.
-     * إذا انتهت صلاحيته سيطلب Google Token جديد.
      */
 
     try {
@@ -642,7 +664,8 @@ export async function uploadBackupToDrive(
       )}.json`;
 
   /*
-   * إنشاء ملف جديد
+   * STEP 1
+   * إنشاء ملف النسخة الاحتياطية
    */
 
   const metadataResponse =
@@ -659,6 +682,7 @@ export async function uploadBackupToDrive(
 
         body: JSON.stringify({
           name: filename,
+
           mimeType:
             'application/json',
         }),
@@ -675,7 +699,11 @@ export async function uploadBackupToDrive(
   }
 
   /*
-   * رفع محتوى النسخة
+   * STEP 2
+   * رفع كامل محتوى النسخة.
+   *
+   * إذا كان payload يحتوي catalog و prices
+   * فسيتم رفعهما مع بقية البيانات.
    */
 
   await driveRequest(
@@ -696,12 +724,18 @@ export async function uploadBackupToDrive(
   );
 
   /*
-   * الاحتفاظ بآخر 5 نسخ
+   * STEP 3
+   * الاحتفاظ بآخر 5 نسخ.
    */
 
   await cleanupOldBackups(
     token
   );
+
+  /*
+   * STEP 4
+   * حفظ وقت آخر نسخة محليًا.
+   */
 
   const now =
     Date.now();
@@ -713,7 +747,9 @@ export async function uploadBackupToDrive(
 
   return {
     id: metadata.id,
+
     name: filename,
+
     modifiedTime:
       new Date(
         now
@@ -741,6 +777,10 @@ export async function restoreLatestBackupFromDrive(): Promise<
     return null;
   }
 
+  /*
+   * أول ملف = أحدث نسخة.
+   */
+
   const file =
     files[0];
 
@@ -756,6 +796,10 @@ export async function restoreLatestBackupFromDrive(): Promise<
   const data =
     await response.json();
 
+  /*
+   * التحقق من صحة النسخة.
+   */
+
   if (
     !data ||
     data.app !== 'lab-app' ||
@@ -769,7 +813,13 @@ export async function restoreLatestBackupFromDrive(): Promise<
     );
   }
 
-  return {
+  /*
+   * بناء النسخة المستعادة.
+   *
+   * الحقول الأساسية تبقى كما كانت.
+   */
+
+  const restored: DriveBackupPayload = {
     app: 'lab-app',
 
     version:
@@ -795,6 +845,56 @@ export async function restoreLatestBackupFromDrive(): Promise<
         ? data.auditLog
         : [],
   };
+
+  /*
+   * استعادة دليل الفحوصات إذا كان موجودًا.
+   *
+   * النسخ القديمة لن تحتوي هذا الحقل،
+   * وفي هذه الحالة يبقى غير موجود.
+   */
+
+  if (
+    Array.isArray(
+      data.catalog
+    )
+  ) {
+    restored.catalog =
+      data.catalog;
+  }
+
+  /*
+   * استعادة أسعار الفحوصات إذا كانت موجودة.
+   */
+
+  if (
+    data.prices &&
+    typeof data.prices === 'object' &&
+    !Array.isArray(data.prices)
+  ) {
+    restored.prices =
+      data.prices;
+  }
+
+  /*
+   * الحفاظ على أي بيانات إضافية قد تتم إضافتها
+   * مستقبلاً إلى النسخة الاحتياطية.
+   */
+
+  Object.keys(data).forEach(
+    (key) => {
+
+      if (
+        !(key in restored) &&
+        key !== 'app'
+      ) {
+        restored[key] =
+          data[key];
+      }
+
+    }
+  );
+
+  return restored;
 }
 
 /* =========================================================
@@ -850,4 +950,4 @@ export async function getDriveBackupSummary() {
     retention:
       RETENTION,
   };
-}
+      } 
