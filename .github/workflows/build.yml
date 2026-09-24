@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK and Web
 
 on:
   workflow_dispatch:
@@ -22,20 +22,29 @@ jobs:
           npm --version
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: |
+          npm install --no-audit --no-fund
+
+      - name: Install Expo Web dependencies
+        run: |
+          npx expo install react-native-web react-dom @expo/metro-runtime
+
+      - name: Verify Web dependencies
+        run: |
+          npm list react-native-web react-dom @expo/metro-runtime
 
       - name: Check Expo configuration
         run: |
-          echo "===== Expo version ====="
-          npx expo --version
-
-          echo "===== Expo config ====="
           npx expo config --json
+
+      - name: Check Expo Doctor
+        run: |
+          npx expo-doctor || true
 
       - name: Install EAS CLI
         run: npm install -g eas-cli
 
-      - name: Show EAS CLI version
+      - name: Show EAS version
         run: eas --version
 
       - name: Build Android APK
