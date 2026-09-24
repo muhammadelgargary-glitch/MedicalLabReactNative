@@ -1,194 +1,82 @@
-// src/components/ThemedButton.tsx - زر معاد الاستخدام مع الثيم
-
 import React from 'react';
-import {
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ViewStyle,
-  TextStyle,
-} from 'react-native';
-import { useLabStore } from '../store/useLabStore';
-import { createTheme } from '../styles/theme';
+import { ActivityIndicator, StyleProp, StyleSheet, Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
 import { getColors } from '../styles/colors';
-import { SPACING, BORDER_RADIUS } from '../styles/spacing';
+import { BORDER_RADIUS, SPACING } from '../styles/spacing';
+import { useLabStore } from '../store/useLabStore';
+import { resolveFontFamily, fontScale } from '../styles/design';
 
-type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'success' | 'outline';
-type ButtonSize = 'sm' | 'md' | 'lg';
+type Variant = 'primary' | 'secondary' | 'danger' | 'success' | 'outline' | 'ghost';
+type Size = 'sm' | 'md' | 'lg';
 
-interface ThemedButtonProps {
-  onPress: () => void;
+interface Props {
   title: string;
-  variant?: ButtonVariant;
-  size?: ButtonSize;
+  variant?: Variant;
+  size?: Size;
+  icon?: string;
+  onPress?: () => void;
   disabled?: boolean;
   loading?: boolean;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
-  icon?: string;
   fullWidth?: boolean;
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }
 
 export default function ThemedButton({
-  onPress,
-  title,
-  variant = 'primary',
-  size = 'md',
-  disabled = false,
-  loading = false,
-  style,
-  textStyle,
-  icon,
-  fullWidth = true,
-}: ThemedButtonProps) {
+  title, variant = 'primary', size = 'md', icon, onPress, disabled, loading, fullWidth = true, style, textStyle,
+}: Props) {
   const isDark = useLabStore((s) => s.darkMode);
   const themeType = useLabStore((s) => s.theme);
-
+  const fontFamily = useLabStore((s) => s.fontFamily);
+  const fontSize = useLabStore((s) => s.fontSize);
   const colors = getColors(isDark, themeType);
-  const theme = createTheme(isDark, themeType);
-  const styles = createStyles(colors, theme);
-
-  const sizeStyles = {
-    sm: styles.sizeSm,
-    md: styles.sizeMd,
-    lg: styles.sizeLg,
-  };
-
-  const variantStyles = {
-    primary: styles.variantPrimary,
-    secondary: styles.variantSecondary,
-    danger: styles.variantDanger,
-    success: styles.variantSuccess,
-    outline: styles.variantOutline,
-  };
-
-  const textVariantStyles = {
-    primary: styles.textPrimary,
-    secondary: styles.textSecondary,
-    danger: styles.textDanger,
-    success: styles.textSuccess,
-    outline: styles.textOutline,
-  };
+  const scale = fontScale(fontSize);
+  const styles = createStyles(colors, resolveFontFamily(fontFamily), scale);
+  const textStyles: any = { primary: styles.primaryText, secondary: styles.secondaryText, danger: styles.dangerText, success: styles.successText, outline: styles.outlineText, ghost: styles.ghostText };
 
   return (
     <TouchableOpacity
-      onPress={onPress}
+      activeOpacity={0.82}
       disabled={disabled || loading}
+      onPress={onPress}
       style={[
-        styles.button,
-        sizeStyles[size],
-        variantStyles[variant],
+        styles.base,
+        styles[size],
+        styles[variant],
         fullWidth && styles.fullWidth,
         (disabled || loading) && styles.disabled,
         style,
       ]}
-      activeOpacity={0.7}
     >
       {loading ? (
-        <ActivityIndicator
-          color={variant === 'outline' ? colors.seal : '#FFFFFF'}
-          size={size === 'sm' ? 'small' : 'large'}
-        />
+        <ActivityIndicator color={variant === 'secondary' || variant === 'outline' || variant === 'ghost' ? colors.navy : '#fff'} />
       ) : (
         <>
-          {icon && <Text style={styles.icon}>{icon} </Text>}
-          <Text style={[textVariantStyles[variant], textStyle]}>{title}</Text>
+          {icon ? <Text style={styles.icon}>{icon}</Text> : null}
+          <Text style={[textStyles[variant], textStyle]}>{title}</Text>
         </>
       )}
     </TouchableOpacity>
   );
 }
 
-const createStyles = (colors: ReturnType<typeof getColors>, theme: ReturnType<typeof createTheme>) =>
-  StyleSheet.create({
-    button: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderRadius: BORDER_RADIUS.md,
-      gap: SPACING[1],
-    },
-    fullWidth: {
-      width: '100%',
-    },
-    disabled: {
-      opacity: 0.5,
-    },
-
-    // ===== Sizes =====
-    sizeSm: {
-      paddingHorizontal: SPACING[3],
-      paddingVertical: SPACING[1],
-      minHeight: 36,
-    },
-    sizeMd: {
-      paddingHorizontal: SPACING[4],
-      paddingVertical: SPACING[2],
-      minHeight: 44,
-    },
-    sizeLg: {
-      paddingHorizontal: SPACING[4],
-      paddingVertical: SPACING[3],
-      minHeight: 52,
-    },
-
-    // ===== Variants =====
-    variantPrimary: {
-      backgroundColor: colors.seal,
-    },
-    variantSecondary: {
-      backgroundColor: colors.panel,
-      borderWidth: 1,
-      borderColor: colors.line,
-    },
-    variantDanger: {
-      backgroundColor: colors.danger,
-    },
-    variantSuccess: {
-      backgroundColor: colors.success,
-    },
-    variantOutline: {
-      backgroundColor: 'transparent',
-      borderWidth: 2,
-      borderColor: colors.seal,
-    },
-
-    // ===== Text Variants =====
-    textPrimary: {
-      color: '#FFFFFF',
-      fontSize: 14,
-      fontWeight: '700',
-      fontFamily: 'Tajawal-Bold',
-    },
-    textSecondary: {
-      color: colors.ink,
-      fontSize: 14,
-      fontWeight: '700',
-      fontFamily: 'Tajawal-Bold',
-    },
-    textDanger: {
-      color: '#FFFFFF',
-      fontSize: 14,
-      fontWeight: '700',
-      fontFamily: 'Tajawal-Bold',
-    },
-    textSuccess: {
-      color: '#FFFFFF',
-      fontSize: 14,
-      fontWeight: '700',
-      fontFamily: 'Tajawal-Bold',
-    },
-    textOutline: {
-      color: colors.seal,
-      fontSize: 14,
-      fontWeight: '700',
-      fontFamily: 'Tajawal-Bold',
-    },
-
-    // ===== Icon =====
-    icon: {
-      fontSize: 16,
-    },
-  });
- 
+const createStyles = (colors: any, fontFamily: string, scale: number) => StyleSheet.create({
+  base: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: BORDER_RADIUS.xl, gap: 8 },
+  fullWidth: { width: '100%' },
+  disabled: { opacity: 0.48 },
+  sm: { minHeight: 38, paddingHorizontal: 14 },
+  md: { minHeight: 46, paddingHorizontal: 18 },
+  lg: { minHeight: 52, paddingHorizontal: 20 },
+  primary: { backgroundColor: colors.navy },
+  secondary: { backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.line },
+  danger: { backgroundColor: colors.danger },
+  success: { backgroundColor: colors.success },
+  outline: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: colors.navy },
+  ghost: { backgroundColor: colors.paper },
+  primaryText: { color: '#fff', fontSize: 14 * scale, fontWeight: '800', fontFamily },
+  secondaryText: { color: colors.ink, fontSize: 14 * scale, fontWeight: '700', fontFamily },
+  dangerText: { color: '#fff', fontSize: 14 * scale, fontWeight: '800', fontFamily },
+  successText: { color: '#fff', fontSize: 14 * scale, fontWeight: '800', fontFamily },
+  outlineText: { color: colors.navy, fontSize: 14 * scale, fontWeight: '800', fontFamily },
+  ghostText: { color: colors.ink, fontSize: 14 * scale, fontWeight: '700', fontFamily },
+  icon: { color: colors.ink, fontSize: 17 * scale, fontFamily },
+});
