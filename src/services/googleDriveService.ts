@@ -33,6 +33,12 @@ export type GoogleUser = {
   picture?: string;
 };
 
+/*
+ * بيانات النسخة الاحتياطية في Google Drive.
+ *
+ * catalog و prices اختياريان حتى تبقى النسخ القديمة
+ * التي لا تحتوي عليهما قابلة للاستعادة.
+ */
 export type DriveBackupPayload = {
   app: 'lab-app';
   version: number;
@@ -40,6 +46,18 @@ export type DriveBackupPayload = {
   patients: any[];
   settings: any;
   auditLog: any[];
+
+  /* بيانات دليل الفحوصات */
+  catalog?: any[];
+
+  /* أسعار الفحوصات */
+  prices?: Record<string, number>;
+
+  /*
+   * يمكن مستقبلاً إضافة بيانات أخرى هنا
+   * بدون كسر التوافق مع النسخ السابقة.
+   */
+  [key: string]: any;
 };
 
 /* =========================================================
@@ -623,6 +641,10 @@ export async function uploadBackupToDrive(
           'application/json; charset=utf-8',
       },
 
+      /*
+       * هنا يتم رفع كامل payload كما هو،
+       * بما فيه catalog و prices إن وجدا.
+       */
       body: JSON.stringify(
         payload
       ),
@@ -719,7 +741,14 @@ export async function restoreLatestBackupFromDrive(): Promise<
     );
   }
 
-  return {
+  /*
+   * استعادة النسخة مع الحفاظ على الحقول القديمة
+   * وإضافة catalog/prices عندما تكون موجودة.
+   *
+   * هذا يجعل النسخ القديمة متوافقة بالكامل.
+   */
+
+  const restored: DriveBackupPayload = {
     app: 'lab-app',
 
     version:
@@ -745,6 +774,50 @@ export async function restoreLatestBackupFromDrive(): Promise<
         ? data.auditLog
         : [],
   };
+
+  /*
+   * دليل الفحوصات:
+   * لا نضيف الحقل إذا لم يكن موجودًا في النسخة القديمة.
+   */
+  if (
+    Array.isArray(
+      data.catalog
+    )
+  ) {
+    restored.catalog =
+      data.catalog;
+  }
+
+  /*
+   * أسعار الفحوصات:
+   * نتحقق من أنه كائن قبل إعادته.
+   */
+  if (
+    data.prices &&
+    typeof data.prices === 'object' &&
+    !Array.isArray(data.prices)
+  ) {
+    restored.prices =
+      data.prices;
+  }
+
+  /*
+   * الحفاظ على أي حقول إضافية مستقبلية
+   * موجودة داخل النسخة الاحتياطية.
+   */
+  Object.keys(data).forEach(
+    (key) => {
+      if (
+        !(key in restored) &&
+        key !== 'app'
+      ) {
+        restored[key] =
+          data[key];
+      }
+    }
+  );
+
+  return restored;
 }
 
 /* =========================================================
@@ -796,4 +869,4 @@ export async function getDriveBackupSummary() {
     retention:
       RETENTION,
   };
-}
+    } 
