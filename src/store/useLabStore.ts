@@ -355,9 +355,9 @@ const DEFAULT_SETTINGS: Settings = {
     logoShape: 'rounded',
     logoBorder: false,
     template: 'classic',
-    showPrice: true,
-    showPaid: true,
-    showRemaining: true,
+    showPrice: false,
+    showPaid: false,
+    showRemaining: false,
     showAbbreviation: true,
   },
 };
