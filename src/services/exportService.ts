@@ -323,18 +323,52 @@ function pageCss(p: Required<PrintOptions>) {
     }
 
 
-    .template-classic .report-header{border-bottom:1px solid #777;padding-bottom:8px;}
-    .template-modern .report-header{border-bottom:3px solid #0F766E;padding-bottom:10px;}
-    .template-compact .report-header{border-bottom:1px solid #CBD5D1;padding-bottom:6px;margin-bottom:6px;}
-    .template-minimal .report-header{border-bottom:1px solid #CBD5D1;padding-bottom:6px;}
-    .template-classic .section-title{background:#F0F0F0;color:#111;border:1px solid #BDBDBD;border-radius:0;padding:5px 7px;}
-    .template-modern .section-title{background:#0F766E;color:#fff;border-radius:7px;}
-    .template-compact .section-title{background:#EAF2F0;color:#17312C;border-radius:4px;padding:4px 6px;}
-    .template-minimal .section-title{background:transparent;color:#0F766E;border-bottom:1px solid #CBD5D1;border-radius:0;padding:4px 0;}
-    .template-classic .result-table th{background:#F0F0F0;color:#111;}
-    .template-classic .result-table td.value{color:#111;}
-    .template-compact .result-table th,.template-compact .result-table td{padding:3px 4px;font-size:${Math.max(9, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;}
-    .template-minimal .result-table th,.template-minimal .result-table td{border-bottom:1px solid #E1E7E4;border-left:0;border-right:0;padding:4px 5px;}
+    /* CLASSIC: تقليدي مثل الإصدار السابق */
+    .template-classic .report-header{border-bottom:2px solid #666;padding-bottom:10px;margin-bottom:12px;}
+    .template-classic .report-title{font-size:${Math.max(14, safeNumber(DEFAULT_PRINT_SETTINGS.fontSize))}px;border-bottom:1px solid #999;padding-bottom:6px;}
+    .template-classic .section-title{background:#F5F5F5;color:#333;border:1px solid #999;border-radius:0;padding:8px 10px;font-size:${Math.max(12, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;font-weight:bold;margin-top:12px;margin-bottom:0;}
+    .template-classic .result-table{border:1px solid #999;margin-top:0;}
+    .template-classic .result-table th{background:#EEEEEE;color:#333;border:1px solid #999;font-size:${Math.max(10, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-2)}px;}
+    .template-classic .result-table td{border:1px solid #CCC;padding:5px 6px;font-size:${Math.max(10, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;}
+    .template-classic .result-table td.value{color:#333;font-weight:bold;}
+    .template-classic .patient-table{border:1px solid #999;}
+    .template-classic .patient-table td{border:1px solid #999;padding:7px 8px;}
+    .template-classic .patient-table .label{background:#E8E8E8;color:#333;}
+    
+    /* MODERN: تصميم حديث طبي احترافي */
+    .template-modern .report-header{border-bottom:3px solid #0F766E;padding-bottom:14px;margin-bottom:14px;}
+    .template-modern .report-title{font-size:${Math.max(16, safeNumber(DEFAULT_PRINT_SETTINGS.fontSize)+2)}px;color:#0F766E;font-weight:900;}
+    .template-modern .section-title{background:#0F766E;color:#FFFFFF;border-radius:8px;padding:10px 12px;font-size:${Math.max(12, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize))}px;font-weight:900;margin-top:14px;margin-bottom:0;letter-spacing:0.5px;}
+    .template-modern .result-table{border:1px solid #0F766E;margin-top:0;}
+    .template-modern .result-table th{background:#0F766E;color:#FFFFFF;border:none;font-size:${Math.max(11, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize))}px;font-weight:900;padding:8px 10px;}
+    .template-modern .result-table td{border-bottom:1px solid #D0E8E5;padding:8px 10px;font-size:${Math.max(10, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;}
+    .template-modern .result-table td.value{color:#0F766E;font-weight:900;}
+    .template-modern .patient-table{border:2px solid #0F766E;border-radius:8px;overflow:hidden;}
+    .template-modern .patient-table td{border-bottom:1px solid #D0E8E5;padding:8px 10px;border-right:1px solid #D0E8E5;}
+    .template-modern .patient-table td.label{background:#E5F3F0;color:#0F766E;font-weight:900;}
+    
+    /* COMPACT: مضغوط يستغل المساحة */
+    .template-compact .report-header{border-bottom:2px solid #0F766E;padding-bottom:8px;margin-bottom:8px;}
+    .template-compact .report-title{font-size:${Math.max(13, safeNumber(DEFAULT_PRINT_SETTINGS.fontSize)-1)}px;}
+    .template-compact .section-title{background:#D9F2F0;color:#0B4F4A;border-radius:4px;padding:5px 7px;font-size:${Math.max(10, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-2)}px;font-weight:bold;margin-top:8px;margin-bottom:2px;}
+    .template-compact .result-table{border:1px solid #CBD5D1;margin-top:0;}
+    .template-compact .result-table th{background:#D9F2F0;color:#0B4F4A;border:1px solid #CBD5D1;font-size:${Math.max(9, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-2)}px;padding:3px 4px;}
+    .template-compact .result-table td{border:1px solid #E8EDEA;padding:3px 4px;font-size:${Math.max(9, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-2)}px;}
+    .template-compact .result-table td.value{color:#0F766E;font-weight:bold;}
+    .template-compact .patient-table td{border:1px solid #CBD5D1;padding:4px 5px;font-size:${Math.max(9, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-2)}px;}
+    .template-compact .patient-table .label{background:#E8F2F1;}
+    
+    /* MINIMAL: بسيط ونظيف */
+    .template-minimal .report-header{border-bottom:2px solid #0F766E;padding-bottom:10px;margin-bottom:12px;}
+    .template-minimal .report-title{font-size:${Math.max(14, safeNumber(DEFAULT_PRINT_SETTINGS.fontSize))}px;color:#0F766E;font-weight:900;}
+    .template-minimal .section-title{background:transparent;color:#0F766E;border-bottom:2px solid #0F766E;border-radius:0;padding:8px 0;font-size:${Math.max(11, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;font-weight:900;margin-top:12px;margin-bottom:6px;}
+    .template-minimal .result-table{border:none;border-top:2px solid #0F766E;margin-top:0;}
+    .template-minimal .result-table th{background:transparent;color:#0F766E;border:none;border-bottom:1px solid #CBD5D1;font-size:${Math.max(10, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;font-weight:900;padding:6px 0;}
+    .template-minimal .result-table td{border:none;border-bottom:1px solid #E8EDEA;padding:6px 0;font-size:${Math.max(10, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;}
+    .template-minimal .result-table td.value{color:#0F766E;font-weight:900;}
+    .template-minimal .patient-table{border:none;border-top:2px solid #0F766E;}
+    .template-minimal .patient-table td{border:none;border-bottom:1px solid #CBD5D1;padding:6px 0;}
+    .template-minimal .patient-table .label{background:transparent;color:#0F766E;font-weight:900;}
 
     .patient-table{
       margin-top:8px;
