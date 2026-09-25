@@ -21,6 +21,7 @@ export type FieldDef = {
   tube?: string;
   specimen?: string;
   notes?: string;
+  unit?: string;
 
   /**
    * لا نضع critical هنا كقيمة افتراضية
