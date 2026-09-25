@@ -1,6 +1,7 @@
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Print from 'expo-print';
+import { Platform } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as XLSX from 'xlsx';
 
@@ -131,9 +132,9 @@ const DEFAULT_PRINT_SETTINGS: Required<PrintOptions> = {
   borderColor: '#D6DFDB',
   showNormal: true,
   template: 'classic',
-  showPrice: true,
-  showPaid: true,
-  showRemaining: true,
+  showPrice: false,
+  showPaid: false,
+  showRemaining: false,
   showAbbreviation: true,
 };
 
@@ -171,6 +172,11 @@ function getPrintSettings(
     ...DEFAULT_PRINT_SETTINGS,
     ...(settings?.printSettings || {}),
     ...options,
+
+    // الأسعار والدفع تخص بطاقة المريض/الحسابات فقط، وليست جزءاً من قالب التقرير المطبوع.
+    showPrice: false,
+    showPaid: false,
+    showRemaining: false,
 
     logoShape:
       options.logoShape ||
@@ -582,13 +588,6 @@ function reportBody(
       )
       : '';
 
-  const pricing = patient?.pricing || {};
-  const priceRow = (p.showPrice || p.showPaid || p.showRemaining) && (pricing.total || pricing.paid || pricing.remaining !== null) ? `
-    <tr>
-      ${p.showPrice ? `<td class="label">السعر</td><td>${pricing.complete ? esc(Number(pricing.total || 0).toLocaleString('en-US') + ' د.ع') : '—'}</td>` : ''}
-      ${p.showPaid ? `<td class="label">المدفوع</td><td>${esc(Number(pricing.paid || 0).toLocaleString('en-US') + ' د.ع')}</td>` : ''}
-      ${p.showRemaining ? `<td class="label">المتبقي</td><td>${pricing.remaining == null ? '—' : esc(Number(pricing.remaining || 0).toLocaleString('en-US') + ' د.ع')}</td>` : ''}
-    </tr>` : '';
 
   const info = `
     <table class="patient-table">
@@ -602,7 +601,6 @@ function reportBody(
           <td class="label">الجنس</td><td>${esc(patient?.gender)}</td>
         </tr>
         ${p.showDate ? `<tr><td class="label">التاريخ</td><td colspan="3">${esc(displayDate(patient?.date || ''))}</td></tr>` : ''}
-        ${priceRow}
       </tbody>
     </table>
   `;
@@ -811,18 +809,32 @@ export async function exportPatientPdf(
   return uri;
 }
 
+async function printHtmlDocument(html: string) {
+  // على Android نطبع PDF مولداً من HTML أولاً، ثم نمرر ملف PDF إلى
+  // نافذة الطباعة. هذا يمنع Android Print Spooler من أخذ شاشة التطبيق
+  // الحالية (الأزرار والقوائم) بدل قالب التقرير.
+  if (Platform.OS === 'web') {
+    await Print.printAsync({ html });
+    return;
+  }
+
+  try {
+    const { uri } = await Print.printToFileAsync({ html });
+    await Print.printAsync({ uri });
+  } catch {
+    // احتياط للتوافق مع بعض إصدارات expo-print.
+    await Print.printAsync({ html });
+  }
+}
+
 export async function printPatient(
   patient: any,
   settings: any = {},
   options: PrintOptions = {},
 ) {
-  await Print.printAsync({
-    html: buildPatientReportHtml(
-      patient,
-      settings,
-      options,
-    ),
-  });
+  await printHtmlDocument(
+    buildPatientReportHtml(patient, settings, options),
+  );
 }
 
 export async function exportMultiplePatientsPdf(
@@ -857,13 +869,9 @@ export async function printMultiplePatients(
   settings: any = {},
   options: PrintOptions = {},
 ) {
-  await Print.printAsync({
-    html: buildMultiplePatientReportsHtml(
-      patients,
-      settings,
-      options,
-    ),
-  });
+  await printHtmlDocument(
+    buildMultiplePatientReportsHtml(patients, settings, options),
+  );
 }
 
 /* =========================================================
@@ -1717,11 +1725,7 @@ export async function printStats(
   settings: any = {},
   options: PrintOptions = {},
 ) {
-  await Print.printAsync({
-    html: buildStatsHtml(
-      stats,
-      settings,
-      options,
-    ),
-  });
-} 
+  await printHtmlDocument(
+    buildStatsHtml(stats, settings, options),
+  );
+}
