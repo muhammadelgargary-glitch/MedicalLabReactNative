@@ -6,6 +6,16 @@ import { buildDefaultTestCatalog } from '../utils/constants';
 export type FontSizeKey = 'small' | 'medium' | 'large' | number;
 export type FontFamilyKey = 'sans' | 'serif' | 'mono';
 export type DensityKey = 'comfortable' | 'compact';
+export type PrintTemplateKey = 'classic' | 'modern' | 'compact' | 'minimal';
+
+export interface PatientPricing {
+  total: number;
+  paid: number;
+  remaining: number | null;
+  complete: boolean;
+  currency: 'IQD';
+  pricedAt: string;
+}
 
 export interface PrintSettings {
   paper?: 'A4' | 'A5' | 'Letter';
@@ -37,6 +47,11 @@ export interface PrintSettings {
   /* إعدادات الشعار الإضافية المستخدمة حالياً في شاشة الطباعة */
   logoShape?: 'circle' | 'rounded' | 'square';
   logoBorder?: boolean;
+  template?: PrintTemplateKey;
+  showPrice?: boolean;
+  showPaid?: boolean;
+  showRemaining?: boolean;
+  showAbbreviation?: boolean;
 }
 
 /**
@@ -126,6 +141,9 @@ export interface Patient {
 
   /** الفحوصات المحددة فعلياً للمريض بصيغة Section.field */
   selectedTests?: string[];
+
+  /** بيانات التسعير والدفع للمريض */
+  pricing?: PatientPricing;
 }
 
 export interface AuditEntry {
@@ -336,6 +354,11 @@ const DEFAULT_SETTINGS: Settings = {
 
     logoShape: 'rounded',
     logoBorder: false,
+    template: 'classic',
+    showPrice: true,
+    showPaid: true,
+    showRemaining: true,
+    showAbbreviation: true,
   },
 };
 
