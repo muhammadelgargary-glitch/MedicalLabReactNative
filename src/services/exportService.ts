@@ -34,6 +34,11 @@ export type PrintOptions = {
   showBorder?: boolean;
   borderColor?: string;
   showNormal?: boolean;
+  template?: 'classic' | 'modern' | 'compact' | 'minimal';
+  showPrice?: boolean;
+  showPaid?: boolean;
+  showRemaining?: boolean;
+  showAbbreviation?: boolean;
 };
 
 export type StatsTest = {
@@ -125,6 +130,11 @@ const DEFAULT_PRINT_SETTINGS: Required<PrintOptions> = {
   showBorder: true,
   borderColor: '#D6DFDB',
   showNormal: true,
+  template: 'classic',
+  showPrice: true,
+  showPaid: true,
+  showRemaining: true,
+  showAbbreviation: true,
 };
 
 async function ensureShare() {
@@ -230,6 +240,32 @@ function pageCss(p: Required<PrintOptions>) {
       page-break-inside:avoid;
     }
 
+    .report-card.template-classic{
+      border:1px solid #777;
+      border-radius:4px;
+      padding:14px;
+    }
+
+    .report-card.template-modern{
+      border:1px solid #B9D7D2;
+      border-radius:16px;
+      padding:14px;
+      box-shadow:0 2px 10px rgba(15,118,110,.08);
+    }
+
+    .report-card.template-compact{
+      border:1px solid #CBD5D1;
+      border-radius:6px;
+      padding:9px;
+    }
+
+    .report-card.template-minimal{
+      border:0;
+      border-top:2px solid #0F766E;
+      border-radius:0;
+      padding:8px 0;
+    }
+
     .report-card{
       border:1px solid #D6DFDB;
       border-radius:10px;
@@ -238,6 +274,11 @@ function pageCss(p: Required<PrintOptions>) {
       break-inside:avoid;
       page-break-inside:avoid;
     }
+
+    .report-card.template-classic{border:1px solid #777;border-radius:4px;padding:14px;}
+    .report-card.template-modern{border:1px solid #B9D7D2;border-radius:16px;padding:14px;}
+    .report-card.template-compact{border:1px solid #CBD5D1;border-radius:6px;padding:9px;}
+    .report-card.template-minimal{border:0;border-top:2px solid #0F766E;border-radius:0;padding:8px 0;}
 
     .report-header{
       border-bottom:2px solid #0F766E;
@@ -274,6 +315,20 @@ function pageCss(p: Required<PrintOptions>) {
       color:#17211E;
       margin-top:9px;
     }
+
+
+    .template-classic .report-header{border-bottom:1px solid #777;padding-bottom:8px;}
+    .template-modern .report-header{border-bottom:3px solid #0F766E;padding-bottom:10px;}
+    .template-compact .report-header{border-bottom:1px solid #CBD5D1;padding-bottom:6px;margin-bottom:6px;}
+    .template-minimal .report-header{border-bottom:1px solid #CBD5D1;padding-bottom:6px;}
+    .template-classic .section-title{background:#F0F0F0;color:#111;border:1px solid #BDBDBD;border-radius:0;padding:5px 7px;}
+    .template-modern .section-title{background:#0F766E;color:#fff;border-radius:7px;}
+    .template-compact .section-title{background:#EAF2F0;color:#17312C;border-radius:4px;padding:4px 6px;}
+    .template-minimal .section-title{background:transparent;color:#0F766E;border-bottom:1px solid #CBD5D1;border-radius:0;padding:4px 0;}
+    .template-classic .result-table th{background:#F0F0F0;color:#111;}
+    .template-classic .result-table td.value{color:#111;}
+    .template-compact .result-table th,.template-compact .result-table td{padding:3px 4px;font-size:${Math.max(9, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;}
+    .template-minimal .result-table th,.template-minimal .result-table td{border-bottom:1px solid #E1E7E4;border-left:0;border-right:0;padding:4px 5px;}
 
     .patient-table{
       margin-top:8px;
@@ -349,37 +404,23 @@ function pageCss(p: Required<PrintOptions>) {
     }
 
     .multi{
-      display:flex;
-      flex-wrap:wrap;
+      display:grid;
       gap:${safeNumber(p.gap)}mm;
-      align-items:flex-start;
-    }
-
-    .multi.one .report-card{
+      align-items:start;
       width:100%;
     }
 
-    .multi.two .report-card{
-      width:calc(50% - ${safeNumber(p.gap) / 2}mm);
-    }
-
-    .multi.three .report-card{
-      width:calc(
-        33.333% -
-        ${safeNumber(p.gap) * 0.67}mm
-      );
-    }
-
-    .multi.four .report-card{
-      width:calc(
-        25% -
-        ${safeNumber(p.gap) * 0.75}mm
-      );
-    }
-
-    .multi.two-stack .report-card{
-      width:100%;
-    }
+    .multi.one{grid-template-columns:1fr;}
+    .multi.two{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .multi.three{grid-template-columns:repeat(3,minmax(0,1fr));}
+    .multi.four{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .multi.two-stack{grid-template-columns:1fr;}
+    .multi.two .report-card,.multi.three .report-card,.multi.four .report-card{padding:8px;}
+    .multi.two .brand-name,.multi.three .brand-name,.multi.four .brand-name{font-size:13px;}
+    .multi.two .report-title,.multi.three .report-title,.multi.four .report-title{font-size:12px;}
+    .multi.two .patient-table td,.multi.three .patient-table td,.multi.four .patient-table td{font-size:9px;padding:3px;}
+    .multi.two .result-table th,.multi.two .result-table td,.multi.three .result-table th,.multi.three .result-table td,.multi.four .result-table th,.multi.four .result-table td{font-size:9px;padding:3px;}
+    .multi.two .section,.multi.three .section,.multi.four .section{margin-top:6px;}
 
     @media print{
       body{
@@ -394,11 +435,16 @@ function getSectionResults(patient: any, key: any, catalog: any[] = []) {
   if (!section) return [];
   const data = patient?.[section.dataKey] || {};
 
-  const selectedKeys = new Set<string>(
-    Array.isArray(patient?.selectedTests) && patient.selectedTests.length
-      ? patient.selectedTests.filter((id: string) => id.startsWith(`${key}.`)).map((id: string) => id.slice(key.length + 1))
-      : section.fields.map((field: any) => field.key),
-  );
+  const scopedSelected = Array.isArray(patient?.selectedTests)
+    ? patient.selectedTests.filter((id: string) => id.startsWith(`${key}.`)).map((id: string) => id.slice(key.length + 1))
+    : [];
+  const hasStoredSelection = scopedSelected.length > 0;
+  const selectedKeys = new Set<string>(hasStoredSelection ? scopedSelected : section.fields.map((field: any) => field.key));
+  if (Array.isArray(patient?.selectedTests) && patient.selectedTests.length && !hasStoredSelection) {
+    section.fields.forEach((field: any) => {
+      if (hasValue(data[field.key])) selectedKeys.add(field.key);
+    });
+  }
 
   const base = section.fields.filter((field: any) => selectedKeys.has(field.key));
   const baseKeys = new Set(base.map((field: any) => field.key));
@@ -411,7 +457,10 @@ function getSectionResults(patient: any, key: any, catalog: any[] = []) {
     }));
 
   return [...base, ...custom]
-    .map((field: any) => ({ ...field, value: data[field.key] ?? '' }))
+    .map((field: any) => {
+      const cat = (catalog || []).find((item: any) => item?.key === field.key || item?.id === field.key);
+      return { ...field, abbreviation: cat?.abbreviation || field.abbreviation || '', value: data[field.key] ?? '' };
+    })
     .filter((x: any) => hasValue(x.value));
 }
 
@@ -533,41 +582,27 @@ function reportBody(
       )
       : '';
 
+  const pricing = patient?.pricing || {};
+  const priceRow = (p.showPrice || p.showPaid || p.showRemaining) && (pricing.total || pricing.paid || pricing.remaining !== null) ? `
+    <tr>
+      ${p.showPrice ? `<td class="label">السعر</td><td>${pricing.complete ? esc(Number(pricing.total || 0).toLocaleString('en-US') + ' د.ع') : '—'}</td>` : ''}
+      ${p.showPaid ? `<td class="label">المدفوع</td><td>${esc(Number(pricing.paid || 0).toLocaleString('en-US') + ' د.ع')}</td>` : ''}
+      ${p.showRemaining ? `<td class="label">المتبقي</td><td>${pricing.remaining == null ? '—' : esc(Number(pricing.remaining || 0).toLocaleString('en-US') + ' د.ع')}</td>` : ''}
+    </tr>` : '';
+
   const info = `
     <table class="patient-table">
       <tbody>
         <tr>
-          <td class="label">اسم المريض</td>
-          <td>${esc(patient?.name)}</td>
-
-          <td class="label">رقم السجل</td>
-          <td>${esc(patient?.seq)}</td>
+          <td class="label">اسم المريض</td><td>${esc(patient?.name)}</td>
+          <td class="label">رقم السجل</td><td>${esc(patient?.seq)}</td>
         </tr>
-
         <tr>
-          <td class="label">العمر</td>
-          <td>${esc(patient?.age)}</td>
-
-          <td class="label">الجنس</td>
-          <td>${esc(patient?.gender)}</td>
+          <td class="label">العمر</td><td>${hasValue(patient?.age) ? esc(patient?.age) : '—'}</td>
+          <td class="label">الجنس</td><td>${esc(patient?.gender)}</td>
         </tr>
-
-        ${
-          p.showDate
-            ? `
-              <tr>
-                <td class="label">التاريخ</td>
-                <td colspan="3">
-                  ${esc(
-                    displayDate(
-                      patient?.date || '',
-                    ),
-                  )}
-                </td>
-              </tr>
-            `
-            : ''
-        }
+        ${p.showDate ? `<tr><td class="label">التاريخ</td><td colspan="3">${esc(displayDate(patient?.date || ''))}</td></tr>` : ''}
+        ${priceRow}
       </tbody>
     </table>
   `;
@@ -580,7 +615,7 @@ function reportBody(
         .map(
           (item: any) => `
             <tr>
-              <td>${esc(item.label)}</td>
+              <td>${esc(item.label)}${p.showAbbreviation && item.abbreviation ? `<div style="font-size:9px;color:#718079;margin-top:2px;">${esc(item.abbreviation)}</div>` : ''}</td>
 
               <td class="value">
                 ${esc(item.value)}
@@ -653,7 +688,7 @@ function reportBody(
       : '';
 
   return `
-    <div class="report-card">
+    <div class="report-card template-${esc(p.template || 'classic')}">
 
       <div class="report-header">
         ${brand}
@@ -706,27 +741,27 @@ export function buildMultiplePatientReportsHtml(
   settings: any = {},
   options: PrintOptions = {},
 ) {
-  const p = getPrintSettings(
-    settings,
-    options,
-  );
+  const p = getPrintSettings(settings, options);
+  const layout = p.layout === 'auto' ? '1' : p.layout;
+  const columns = layout === '2stack' ? 1 : layout === '2' ? 2 : layout === '3' ? 3 : layout === '4' ? 2 : 1;
+  const perPage = layout === '4' ? 4 : layout === '3' ? 3 : layout === '2' || layout === '2stack' ? 2 : 1;
+  const pages: any[][] = [];
+  for (let i = 0; i < (patients || []).length; i += perPage) pages.push((patients || []).slice(i, i + perPage));
 
-  const layoutClass =
-    p.layout === 'auto'
-      ? 'one'
-      : p.layout === '2stack'
-        ? 'two-stack'
-        : ['1', '2', '3', '4'].includes(
-            p.layout,
-          )
-          ? p.layout
-          : 'one';
-
-  const cards = (patients || [])
-    .map((patient) =>
-      reportBody(patient, settings, p),
-    )
-    .join('');
+  const pageHtml = pages.map((group) => `
+    <section class="multi-page" style="padding:${safeNumber(p.marginTop)}mm ${safeNumber(p.marginRight)}mm ${safeNumber(p.marginBottom)}mm ${safeNumber(p.marginLeft)}mm;">
+      <table class="multi-table" style="width:100%;border-collapse:separate;border-spacing:${safeNumber(p.gap)}mm;table-layout:fixed;">
+        <tbody>
+          ${group.map((patient, index) => {
+            const startRow = index % columns === 0;
+            const cells = group.slice(index, index + columns);
+            if (!startRow) return '';
+            return `<tr>${cells.map((item) => `<td class="multi-cell" style="vertical-align:top;width:${100 / columns}%;padding:0;">${reportBody(item, settings, p)}</td>`).join('')}</tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </section>
+  `).join('');
 
   return `
     <!doctype html>
@@ -735,16 +770,17 @@ export function buildMultiplePatientReportsHtml(
         <meta charset="UTF-8"/>
         <style>
           ${pageCss(p)}
+          .multi-page{width:100%;min-height:0;box-sizing:border-box;break-after:page;page-break-after:always;background:#fff;overflow:visible;}
+          .multi-page:last-child{break-after:auto;page-break-after:auto;}
+          .multi-cell{break-inside:avoid;page-break-inside:avoid;}
+          .multi-table{margin:0;}
+          .multi-table .report-card{width:100%;}
+          .multi-table .result-table{font-size:${safeNumber(p.tableFontSize)}px;}
+          .multi-table .patient-table td{font-size:${Math.max(9, safeNumber(p.tableFontSize)-1)}px;}
+          @media print{body{margin:0;background:#fff;} .multi-page{break-after:page;page-break-after:always;} .multi-page:last-child{break-after:auto;page-break-after:auto;}}
         </style>
       </head>
-
-      <body>
-        <div class="page">
-          <div class="multi ${layoutClass}">
-            ${cards}
-          </div>
-        </div>
-      </body>
+      <body>${pageHtml}</body>
     </html>
   `;
 }
@@ -1627,7 +1663,7 @@ export function buildStatsHtml(
 
         <div class="page">
 
-          <div class="report-card">
+          <div class="report-card template-${esc(p.template || 'classic')}">
 
             ${header}
 
