@@ -95,10 +95,8 @@ export default function SettingsScreen({ navigation }: any) {
         directorate: directorate.trim() || 'الإدارة',
       });
 
-      Alert.alert(
-        'تم الحفظ',
-        'تم حفظ معلومات المختبر بنجاح.',
-      );
+      navigation.getParent?.()?.navigate('Home');
+      Alert.alert('تم الحفظ', 'تم حفظ معلومات المختبر بنجاح.');
     } catch (e: any) {
       Alert.alert(
         'خطأ',

@@ -25,22 +25,32 @@ export default function PrintSettingsScreen({ navigation }: any) {
 
   const set = (key:string,value:any) => setDraft((d:any)=>({...d,[key]:value}));
   const save = async () => {
-    await updateSettings({
-      logo,
-      logoShape: draft.logoShape || settings.logoShape || 'rounded',
-      logoSize: Number(draft.logoSize || settings.logoSize || 56),
-      logoPosition: draft.logoPosition || settings.logoPosition || 'right',
-      logoBorder: !!draft.logoBorder,
-      template: draft.template || 'classic',
-      showPrice: draft.showPrice !== false,
-      showPaid: draft.showPaid !== false,
-      showRemaining: draft.showRemaining !== false,
-      showAbbreviation: draft.showAbbreviation !== false,
-      reportTitle: draft.reportTitle || 'تقرير الفحوصات المخبرية',
-      footerText: draft.footerText || 'مع تمنياتنا بالصحة والعافية',
-      printSettings: draft,
-    });
-    Alert.alert('تم الحفظ','تم حفظ إعدادات التقرير والطباعة.');
+    try {
+      const nextPrintSettings = {
+        ...draft,
+        template: draft.template || 'classic',
+        showPrice: false,
+        showPaid: false,
+        showRemaining: false,
+        showAbbreviation: draft.showAbbreviation !== false,
+      };
+
+      await updateSettings({
+        logo,
+        logoShape: draft.logoShape || settings.logoShape || 'rounded',
+        logoSize: Number(draft.logoSize || settings.logoSize || 56),
+        logoPosition: draft.logoPosition || settings.logoPosition || 'right',
+        logoBorder: !!draft.logoBorder,
+        reportTitle: draft.reportTitle || 'تقرير الفحوصات المخبرية',
+        footerText: draft.footerText || 'مع تمنياتنا بالصحة والعافية',
+        printSettings: nextPrintSettings,
+      });
+
+      navigation.getParent?.()?.navigate('Home');
+      Alert.alert('تم الحفظ', 'تم حفظ قالب التقرير وإعدادات الطباعة.');
+    } catch (e: any) {
+      Alert.alert('خطأ', e?.message || 'تعذر حفظ إعدادات الطباعة.');
+    }
   };
 
   const pickLogo = async () => {
@@ -66,10 +76,19 @@ export default function PrintSettingsScreen({ navigation }: any) {
     <Section title="قالب التقرير" styles={styles}>
       <Text style={styles.help}>اختر الشكل العام للتقرير. القالب الكلاسيكي قريب من تصميم التقرير السابق، وباقي القوالب تغيّر الرأس والجداول والمسافات فقط دون حذف النتائج.</Text>
       {choice('template',[['classic','كلاسيكي — مثل المشروع السابق'],['modern','حديث'],['compact','مضغوط'],['minimal','بسيط']])}
-      <View style={styles.templatePreview}>
-        <View style={[styles.previewBar, draft.template === 'modern' && styles.previewModern, draft.template === 'compact' && styles.previewCompact]} />
+      <View style={[styles.templatePreview, draft.template === 'modern' && styles.previewModernCard, draft.template === 'compact' && styles.previewCompactCard, draft.template === 'minimal' && styles.previewMinimalCard]}>
+        <View style={[styles.previewBar, draft.template === 'modern' && styles.previewModern, draft.template === 'compact' && styles.previewCompact, draft.template === 'minimal' && styles.previewMinimal]} />
         <Text style={styles.previewTitle}>{draft.reportTitle || 'تقرير الفحوصات المخبرية'}</Text>
-        <View style={styles.previewLines}><View/><View/><View/></View>
+        <View style={styles.previewPatientRow}>
+          <Text style={styles.previewCell}>اسم المريض</Text><Text style={styles.previewCell}>رقم السجل</Text><Text style={styles.previewCell}>التاريخ</Text>
+        </View>
+        <View style={styles.previewSection}><Text style={styles.previewSectionText}>Hematology / Blood</Text></View>
+        <View style={styles.previewTable}>
+          <View style={styles.previewTableHead}><Text style={styles.previewHeadText}>اسم الفحص</Text><Text style={styles.previewHeadText}>النتيجة</Text><Text style={styles.previewHeadText}>القيمة المرجعية</Text></View>
+          <View style={styles.previewTableRow}><Text style={styles.previewText}>Hb</Text><Text style={styles.previewText}>12</Text><Text style={styles.previewText}>12 - 17</Text></View>
+          <View style={styles.previewTableRow}><Text style={styles.previewText}>PCV</Text><Text style={styles.previewText}>37</Text><Text style={styles.previewText}>36 - 50</Text></View>
+          <View style={styles.previewTableRow}><Text style={styles.previewText}>ESR</Text><Text style={styles.previewText}>25</Text><Text style={styles.previewText}>0 - 20</Text></View>
+        </View>
       </View>
     </Section>
 
@@ -101,9 +120,9 @@ export default function PrintSettingsScreen({ navigation }: any) {
         ['showCenter','اسم المختبر'],['showDirectorate','الإدارة / الفرع'],['showDate','التاريخ'],['showSeq','رقم السجل'],['showNormal','القيم الطبيعية'],['showNotes','الملاحظات'],['showFooter','التذييل'],['showBorder','حدود الجداول'],['showLogo','الشعار'],
       ].map(([k,l])=><SwitchRow key={k} label={l} value={draft[k] !== false} onChange={(v)=>set(k,v)} styles={styles}/>)}
       <Text style={styles.label}>تفاصيل إضافية</Text>
-      <SwitchRow label="سعر الفحوصات" value={draft.showPrice !== false} onChange={(v)=>set('showPrice',v)} styles={styles}/>
-      <SwitchRow label="المبلغ المدفوع" value={draft.showPaid !== false} onChange={(v)=>set('showPaid',v)} styles={styles}/>
-      <SwitchRow label="المبلغ المتبقي" value={draft.showRemaining !== false} onChange={(v)=>set('showRemaining',v)} styles={styles}/>
+      <View style={styles.infoBox}>
+        <Text style={styles.infoText}>السعر والمدفوع والمتبقي تظهر في بطاقة المريض داخل التطبيق فقط، ولن تظهر في قالب التقرير المطبوع أو PDF.</Text>
+      </View>
       <SwitchRow label="اختصار اسم الفحص" value={draft.showAbbreviation !== false} onChange={(v)=>set('showAbbreviation',v)} styles={styles}/>
     </Section>
 
@@ -124,5 +143,5 @@ function Field({label,value,onChangeText,styles}:{label:string;value:string;onCh
 function SwitchRow({label,value,onChange,styles}:{label:string;value:boolean;onChange:(v:boolean)=>void;styles:any}){return <View style={styles.switchRow}><Text style={styles.label}>{label}</Text><Switch value={value} onValueChange={onChange}/></View>}
 
 const createStyles=(colors:any,fontFamily:string,scale:number)=>StyleSheet.create({
- container:{flex:1,backgroundColor:colors.paper},content:{paddingBottom:40},header:{backgroundColor:colors.headerBg,padding:18,flexDirection:'row',alignItems:'center'},back:{width:40,height:40,borderRadius:12,backgroundColor:'rgba(255,255,255,.12)',alignItems:'center',justifyContent:'center',marginRight:12},backText:{color:'#fff',fontSize:30},kicker:{color:'#B7E8E2',fontSize:11*scale,fontWeight:'700',fontFamily},title:{color:'#fff',fontSize:23*scale,fontWeight:'900',fontFamily},section:{margin:14,padding:16,borderRadius:18,backgroundColor:colors.panel,borderWidth:1,borderColor:colors.line,...SHADOWS.sm},templatePreview:{marginTop:10,borderWidth:1,borderColor:colors.line,borderRadius:14,padding:10,backgroundColor:colors.paper},previewBar:{height:7,borderRadius:6,backgroundColor:colors.navy,marginBottom:8},previewModern:{backgroundColor:colors.seal},previewCompact:{height:4},previewTitle:{textAlign:'center',fontSize:12*scale,fontWeight:'900',color:colors.ink,fontFamily,marginBottom:8},previewLines:{gap:5},sectionTitle:{fontSize:16*scale,fontWeight:'900',color:colors.ink,fontFamily,marginBottom:14},help:{fontSize:11*scale,color:colors.inkSub,fontFamily,lineHeight:18,marginBottom:10},label:{fontSize:13*scale,color:colors.ink,fontWeight:'800',fontFamily,marginTop:10,marginBottom:6},choices:{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:8},choice:{flex:1,minWidth:92,paddingVertical:11,paddingHorizontal:8,borderRadius:12,borderWidth:1,borderColor:colors.line,backgroundColor:colors.paper,alignItems:'center'},activeChoice:{backgroundColor:colors.navy,borderColor:colors.navy},choiceText:{fontSize:11*scale,color:colors.ink,fontWeight:'700',fontFamily,textAlign:'center'},activeChoiceText:{color:'#fff'},input:{minHeight:44,borderWidth:1,borderColor:colors.line,borderRadius:12,paddingHorizontal:12,color:colors.ink,backgroundColor:colors.paper,textAlign:'right',fontFamily,fontSize:13*scale},logoPreview:{height:100,borderRadius:14,borderWidth:1,borderColor:colors.line,backgroundColor:colors.paper,alignItems:'center',justifyContent:'center'},logoImage:{width:90,height:90},logoMissing:{color:colors.inkSub,fontFamily},rowButtons:{flexDirection:'row',gap:8,marginTop:10},primarySmall:{flex:1,backgroundColor:colors.navy,borderRadius:12,minHeight:44,alignItems:'center',justifyContent:'center'},dangerSmall:{width:90,backgroundColor:colors.danger,borderRadius:12,minHeight:44,alignItems:'center',justifyContent:'center'},whiteText:{color:'#fff',fontWeight:'800',fontFamily},switchRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:9,borderBottomWidth:1,borderBottomColor:colors.line},marginGrid:{flexDirection:'row',flexWrap:'wrap',gap:8},marginCell:{width:'48%'},smallLabel:{fontSize:11,color:colors.inkSub,fontFamily},save:{margin:14,marginTop:0,minHeight:54,borderRadius:16,backgroundColor:colors.navy,alignItems:'center',justifyContent:'center'},saveText:{color:'#fff',fontSize:15*scale,fontWeight:'900',fontFamily}
+ container:{flex:1,backgroundColor:colors.paper},content:{paddingBottom:40},header:{backgroundColor:colors.headerBg,padding:18,flexDirection:'row',alignItems:'center'},back:{width:40,height:40,borderRadius:12,backgroundColor:'rgba(255,255,255,.12)',alignItems:'center',justifyContent:'center',marginRight:12},backText:{color:'#fff',fontSize:30},kicker:{color:'#B7E8E2',fontSize:11*scale,fontWeight:'700',fontFamily},title:{color:'#fff',fontSize:23*scale,fontWeight:'900',fontFamily},section:{margin:14,padding:16,borderRadius:18,backgroundColor:colors.panel,borderWidth:1,borderColor:colors.line,...SHADOWS.sm},templatePreview:{marginTop:10,borderWidth:1,borderColor:colors.line,borderRadius:10,padding:10,backgroundColor:'#fff'},previewModernCard:{borderColor:colors.navy,borderRadius:16},previewCompactCard:{padding:7,borderRadius:6},previewMinimalCard:{borderWidth:0,borderTopWidth:2,borderTopColor:colors.navy,borderRadius:0},previewBar:{height:6,borderRadius:4,backgroundColor:'#555',marginBottom:8},previewModern:{backgroundColor:colors.navy},previewCompact:{height:4},previewMinimal:{height:2,backgroundColor:colors.navy},previewTitle:{textAlign:'center',fontSize:11*scale,fontWeight:'900',color:'#111',fontFamily,marginBottom:8},previewPatientRow:{flexDirection:'row',borderWidth:1,borderColor:'#999',marginBottom:7},previewCell:{flex:1,padding:5,borderLeftWidth:1,borderLeftColor:'#999',fontSize:8*scale,color:'#111',fontFamily,textAlign:'center'},previewSection:{backgroundColor:'#eee',borderWidth:1,borderColor:'#bbb',paddingVertical:5,alignItems:'center',marginBottom:4},previewSectionText:{fontSize:9*scale,fontWeight:'900',color:'#111',fontFamily},previewTable:{borderWidth:1,borderColor:'#777'},previewTableHead:{flexDirection:'row',backgroundColor:'#eee'},previewTableRow:{flexDirection:'row',borderTopWidth:1,borderTopColor:'#aaa'},previewHeadText:{flex:1,padding:4,fontSize:7.5*scale,fontWeight:'900',color:'#111',fontFamily,textAlign:'center',borderLeftWidth:1,borderLeftColor:'#aaa'},previewText:{flex:1,padding:4,fontSize:7.5*scale,color:'#111',fontFamily,textAlign:'center',borderLeftWidth:1,borderLeftColor:'#aaa'},sectionTitle:{fontSize:16*scale,fontWeight:'900',color:colors.ink,fontFamily,marginBottom:14},help:{fontSize:11*scale,color:colors.inkSub,fontFamily,lineHeight:18,marginBottom:10},label:{fontSize:13*scale,color:colors.ink,fontWeight:'800',fontFamily,marginTop:10,marginBottom:6},choices:{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:8},choice:{flex:1,minWidth:92,paddingVertical:11,paddingHorizontal:8,borderRadius:12,borderWidth:1,borderColor:colors.line,backgroundColor:colors.paper,alignItems:'center'},activeChoice:{backgroundColor:colors.navy,borderColor:colors.navy},choiceText:{fontSize:11*scale,color:colors.ink,fontWeight:'700',fontFamily,textAlign:'center'},activeChoiceText:{color:'#fff'},input:{minHeight:44,borderWidth:1,borderColor:colors.line,borderRadius:12,paddingHorizontal:12,color:colors.ink,backgroundColor:colors.paper,textAlign:'right',fontFamily,fontSize:13*scale},logoPreview:{height:100,borderRadius:14,borderWidth:1,borderColor:colors.line,backgroundColor:colors.paper,alignItems:'center',justifyContent:'center'},logoImage:{width:90,height:90},logoMissing:{color:colors.inkSub,fontFamily},rowButtons:{flexDirection:'row',gap:8,marginTop:10},primarySmall:{flex:1,backgroundColor:colors.navy,borderRadius:12,minHeight:44,alignItems:'center',justifyContent:'center'},dangerSmall:{width:90,backgroundColor:colors.danger,borderRadius:12,minHeight:44,alignItems:'center',justifyContent:'center'},whiteText:{color:'#fff',fontWeight:'800',fontFamily},switchRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:9,borderBottomWidth:1,borderBottomColor:colors.line},infoBox:{marginTop:8,padding:11,borderRadius:12,backgroundColor:colors.sealLight,borderWidth:1,borderColor:colors.line},infoText:{fontSize:11*scale,lineHeight:18,color:colors.ink,fontFamily},marginGrid:{flexDirection:'row',flexWrap:'wrap',gap:8},marginCell:{width:'48%'},smallLabel:{fontSize:11,color:colors.inkSub,fontFamily},save:{margin:14,marginTop:0,minHeight:54,borderRadius:16,backgroundColor:colors.navy,alignItems:'center',justifyContent:'center'},saveText:{color:'#fff',fontSize:15*scale,fontWeight:'900',fontFamily}
 });

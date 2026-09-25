@@ -71,6 +71,12 @@ export default function ResultEntryScreen({ route, navigation }: any) {
 
   const [saving, setSaving] = useState(false);
 
+  const goToPatientList = () => {
+    const parent = navigation.getParent?.();
+    if (parent) parent.navigate('Catalog');
+    else navigation.navigate('CatalogMain');
+  };
+
   const sections = useMemo(() => {
     if (!patient) return [];
     return SECTION_KEYS.filter((key) => selectedTestIds.some((id) => id.startsWith(`${key}.`)));
@@ -298,41 +304,23 @@ export default function ResultEntryScreen({ route, navigation }: any) {
       if (criticalTests.length) {
         Alert.alert(
           '⚠️ تنبيه قيمة حرجة',
-          `تم حفظ النتائج، لكن توجد قيمة حرجة في:\n\n${criticalTests.join(
-            '\n',
-          )}`,
+          `تم حفظ النتائج، لكن توجد قيمة حرجة في:\n\n${criticalTests.join('\n')}`,
           [
             {
               text: 'مراجعة التقرير',
-              onPress: () =>
-                navigation.replace('PatientReport', {
-                  id: patient.id,
-                }),
+              onPress: () => navigation.replace('PatientReport', { id: patient.id }),
             },
             {
-              text: 'حسنًا',
+              text: 'حسنًا والعودة للسجلات',
               style: 'cancel',
+              onPress: goToPatientList,
             },
           ],
         );
       } else {
-        Alert.alert(
-          'تم الحفظ',
-          'تم حفظ نتائج الفحوصات بنجاح.',
-          [
-            {
-              text: 'عرض التقرير',
-              onPress: () =>
-                navigation.replace('PatientReport', {
-                  id: patient.id,
-                }),
-            },
-            {
-              text: 'البقاء هنا',
-              style: 'cancel',
-            },
-          ],
-        );
+        // الحفظ الناجح يعيد المستخدم مباشرة إلى قائمة السجلات.
+        goToPatientList();
+        Alert.alert('تم الحفظ', 'تم حفظ نتائج الفحوصات بنجاح.');
       }
     } catch (error: any) {
       Alert.alert(
