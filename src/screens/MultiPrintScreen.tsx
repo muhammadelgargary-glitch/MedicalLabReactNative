@@ -17,7 +17,7 @@ export default function MultiPrintScreen({ navigation }: any) {
   const styles = createStyles(colors,resolveFontFamily(family),fontScale(size));
   const [query,setQuery]=useState('');
   const [selected,setSelected]=useState<string[]>([]);
-  const [layout,setLayout]=useState<any>(settings.printSettings?.layout || '2');
+  const [layout,setLayout]=useState<any>(settings.printSettings?.layout || '1');
   const [busy,setBusy]=useState(false);
 
   const visible=useMemo(()=>patients.filter(p=>!query.trim() || `${p.name} ${p.seq}`.toLowerCase().includes(query.trim().toLowerCase())),[patients,query]);
@@ -25,6 +25,7 @@ export default function MultiPrintScreen({ navigation }: any) {
   const allVisible=visible.length>0 && visible.every(p=>selected.includes(p.id));
   const selectAll=()=>setSelected(allVisible?selected.filter(id=>!visible.some(p=>p.id===id)):[...new Set([...selected,...visible.map(p=>p.id)])]);
   const chosen=patients.filter(p=>selected.includes(p.id));
+  const resultCount=(p:any)=>Object.values(p.blood||{}).concat(Object.values(p.chem||{}),Object.values(p.urine||{}),Object.values(p.serology||{}),Object.values(p.stool||{}),Object.values(p.preg||{})).filter(v=>String(v??'').trim()!=='').length;
   const run=async(fn:()=>Promise<any>,message:string)=>{if(!chosen.length){Alert.alert('تنبيه','حدد تقريرًا واحدًا على الأقل.');return;}try{setBusy(true);await fn();Alert.alert('تم',message)}catch(e:any){Alert.alert('خطأ',e?.message||'تعذر تنفيذ العملية')}finally{setBusy(false)}};
 
   return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.content}>
@@ -34,7 +35,7 @@ export default function MultiPrintScreen({ navigation }: any) {
     <View style={styles.layoutCard}><Text style={styles.cardTitle}>تخطيط الصفحة</Text><View style={styles.choices}>{[['1','1'],['2','2'],['2stack','2 عمودي'],['3','3'],['4','4']].map(([k,l])=><TouchableOpacity key={k} onPress={()=>setLayout(k)} style={[styles.choice,layout===k&&styles.active]}><Text style={[styles.choiceText,layout===k&&styles.activeText]}>{l}</Text></TouchableOpacity>)}</View></View>
     {visible.map(p=><TouchableOpacity key={p.id} onPress={()=>toggle(p.id)} style={[styles.patient,selected.includes(p.id)&&styles.patientSelected]}>
       <View style={[styles.checkbox,selected.includes(p.id)&&styles.checkboxActive]}><Text style={styles.check}>{selected.includes(p.id)?'✓':''}</Text></View>
-      <View style={{flex:1}}><Text style={styles.name}>{p.name}</Text><Text style={styles.meta}>#{p.seq} • {p.age} • {p.gender}</Text></View>
+      <View style={{flex:1}}><Text style={styles.name}>{p.name}</Text><Text style={styles.meta}>#{p.seq || '—'} • {p.age || '—'} • {p.gender || '—'} • {resultCount(p)} نتيجة</Text></View>
     </TouchableOpacity>)}
     <View style={styles.actions}>
       <TouchableOpacity disabled={busy} onPress={()=>run(()=>printMultiplePatients(chosen,{...settings,__catalog:testCatalog},{...(settings.printSettings||{}),layout}),'تم إرسال التقارير للطباعة')} style={styles.primary}><Text style={styles.primaryText}>طباعة التقارير المحددة</Text></TouchableOpacity>

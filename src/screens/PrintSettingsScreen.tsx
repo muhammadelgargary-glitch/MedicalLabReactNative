@@ -18,10 +18,10 @@ export default function PrintSettingsScreen({ navigation }: any) {
   const styles = createStyles(colors, resolveFontFamily(family), fontScale(fontSize));
 
   const p = settings.printSettings || {};
-  const [draft, setDraft] = useState<any>({...p, logoShape: p.logoShape || settings.logoShape || 'rounded', logoSize: p.logoSize || settings.logoSize || 56, logoPosition: p.logoPosition || settings.logoPosition || 'right', logoBorder: p.logoBorder ?? settings.logoBorder ?? false});
+  const [draft, setDraft] = useState<any>({...p, logoShape: p.logoShape || settings.logoShape || 'rounded', logoSize: p.logoSize || settings.logoSize || 56, logoPosition: p.logoPosition || settings.logoPosition || 'right', logoBorder: p.logoBorder ?? settings.logoBorder ?? false, template: p.template || 'classic', showPrice: p.showPrice !== false, showPaid: p.showPaid !== false, showRemaining: p.showRemaining !== false, showAbbreviation: p.showAbbreviation !== false});
   const [logo, setLogo] = useState(settings.logo || '');
 
-  useEffect(() => { setDraft({...settings.printSettings, logoShape: settings.printSettings?.logoShape || settings.logoShape || 'rounded', logoSize: settings.printSettings?.logoSize || settings.logoSize || 56, logoPosition: settings.printSettings?.logoPosition || settings.logoPosition || 'right', logoBorder: settings.printSettings?.logoBorder ?? settings.logoBorder ?? false}); setLogo(settings.logo || ''); }, [settings.printSettings, settings.logo, settings.logoShape, settings.logoSize, settings.logoPosition, settings.logoBorder]);
+  useEffect(() => { setDraft({...settings.printSettings, logoShape: settings.printSettings?.logoShape || settings.logoShape || 'rounded', logoSize: settings.printSettings?.logoSize || settings.logoSize || 56, logoPosition: settings.printSettings?.logoPosition || settings.logoPosition || 'right', logoBorder: settings.printSettings?.logoBorder ?? settings.logoBorder ?? false, template: settings.printSettings?.template || 'classic', showPrice: settings.printSettings?.showPrice !== false, showPaid: settings.printSettings?.showPaid !== false, showRemaining: settings.printSettings?.showRemaining !== false, showAbbreviation: settings.printSettings?.showAbbreviation !== false}); setLogo(settings.logo || ''); }, [settings.printSettings, settings.logo, settings.logoShape, settings.logoSize, settings.logoPosition, settings.logoBorder]);
 
   const set = (key:string,value:any) => setDraft((d:any)=>({...d,[key]:value}));
   const save = async () => {
@@ -31,6 +31,11 @@ export default function PrintSettingsScreen({ navigation }: any) {
       logoSize: Number(draft.logoSize || settings.logoSize || 56),
       logoPosition: draft.logoPosition || settings.logoPosition || 'right',
       logoBorder: !!draft.logoBorder,
+      template: draft.template || 'classic',
+      showPrice: draft.showPrice !== false,
+      showPaid: draft.showPaid !== false,
+      showRemaining: draft.showRemaining !== false,
+      showAbbreviation: draft.showAbbreviation !== false,
       reportTitle: draft.reportTitle || 'تقرير الفحوصات المخبرية',
       footerText: draft.footerText || 'مع تمنياتنا بالصحة والعافية',
       printSettings: draft,
@@ -57,6 +62,16 @@ export default function PrintSettingsScreen({ navigation }: any) {
 
   return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
     <View style={styles.header}><TouchableOpacity onPress={()=>navigation.goBack()} style={styles.back}><Text style={styles.backText}>‹</Text></TouchableOpacity><View><Text style={styles.kicker}>التقارير</Text><Text style={styles.title}>إعدادات الطباعة</Text></View></View>
+
+    <Section title="قالب التقرير" styles={styles}>
+      <Text style={styles.help}>اختر الشكل العام للتقرير. القالب الكلاسيكي قريب من تصميم التقرير السابق، وباقي القوالب تغيّر الرأس والجداول والمسافات فقط دون حذف النتائج.</Text>
+      {choice('template',[['classic','كلاسيكي — مثل المشروع السابق'],['modern','حديث'],['compact','مضغوط'],['minimal','بسيط']])}
+      <View style={styles.templatePreview}>
+        <View style={[styles.previewBar, draft.template === 'modern' && styles.previewModern, draft.template === 'compact' && styles.previewCompact]} />
+        <Text style={styles.previewTitle}>{draft.reportTitle || 'تقرير الفحوصات المخبرية'}</Text>
+        <View style={styles.previewLines}><View/><View/><View/></View>
+      </View>
+    </Section>
 
     <Section title="حجم الورق واتجاهه" styles={styles}>
       {choice('paper',[['A4','A4'],['A5','A5'],['Letter','Letter']])}
@@ -85,6 +100,11 @@ export default function PrintSettingsScreen({ navigation }: any) {
       {[
         ['showCenter','اسم المختبر'],['showDirectorate','الإدارة / الفرع'],['showDate','التاريخ'],['showSeq','رقم السجل'],['showNormal','القيم الطبيعية'],['showNotes','الملاحظات'],['showFooter','التذييل'],['showBorder','حدود الجداول'],['showLogo','الشعار'],
       ].map(([k,l])=><SwitchRow key={k} label={l} value={draft[k] !== false} onChange={(v)=>set(k,v)} styles={styles}/>)}
+      <Text style={styles.label}>تفاصيل إضافية</Text>
+      <SwitchRow label="سعر الفحوصات" value={draft.showPrice !== false} onChange={(v)=>set('showPrice',v)} styles={styles}/>
+      <SwitchRow label="المبلغ المدفوع" value={draft.showPaid !== false} onChange={(v)=>set('showPaid',v)} styles={styles}/>
+      <SwitchRow label="المبلغ المتبقي" value={draft.showRemaining !== false} onChange={(v)=>set('showRemaining',v)} styles={styles}/>
+      <SwitchRow label="اختصار اسم الفحص" value={draft.showAbbreviation !== false} onChange={(v)=>set('showAbbreviation',v)} styles={styles}/>
     </Section>
 
     <Section title="الخط والهوامش" styles={styles}>
@@ -99,10 +119,10 @@ export default function PrintSettingsScreen({ navigation }: any) {
   </ScrollView></SafeAreaView>;
 }
 
-function Section({title,children,styles}:{title:string;children:any;styles:any}){return <View style={styles.section}><Text style={styles.sectionTitle}>{title}</Text>{children}</View>}
+function Section({title,children,styles}:{title:string;children?:any;styles:any}){return <View style={styles.section}><Text style={styles.sectionTitle}>{title}</Text>{children}</View>}
 function Field({label,value,onChangeText,styles}:{label:string;value:string;onChangeText:(v:string)=>void;styles:any}){return <View><Text style={styles.label}>{label}</Text><TextInput value={value} onChangeText={onChangeText} style={styles.input}/></View>}
 function SwitchRow({label,value,onChange,styles}:{label:string;value:boolean;onChange:(v:boolean)=>void;styles:any}){return <View style={styles.switchRow}><Text style={styles.label}>{label}</Text><Switch value={value} onValueChange={onChange}/></View>}
 
 const createStyles=(colors:any,fontFamily:string,scale:number)=>StyleSheet.create({
- container:{flex:1,backgroundColor:colors.paper},content:{paddingBottom:40},header:{backgroundColor:colors.headerBg,padding:18,flexDirection:'row',alignItems:'center'},back:{width:40,height:40,borderRadius:12,backgroundColor:'rgba(255,255,255,.12)',alignItems:'center',justifyContent:'center',marginRight:12},backText:{color:'#fff',fontSize:30},kicker:{color:'#B7E8E2',fontSize:11*scale,fontWeight:'700',fontFamily},title:{color:'#fff',fontSize:23*scale,fontWeight:'900',fontFamily},section:{margin:14,padding:16,borderRadius:18,backgroundColor:colors.panel,borderWidth:1,borderColor:colors.line,...SHADOWS.sm},sectionTitle:{fontSize:16*scale,fontWeight:'900',color:colors.ink,fontFamily,marginBottom:14},help:{fontSize:11*scale,color:colors.inkSub,fontFamily,lineHeight:18,marginBottom:10},label:{fontSize:13*scale,color:colors.ink,fontWeight:'800',fontFamily,marginTop:10,marginBottom:6},choices:{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:8},choice:{flex:1,minWidth:92,paddingVertical:11,paddingHorizontal:8,borderRadius:12,borderWidth:1,borderColor:colors.line,backgroundColor:colors.paper,alignItems:'center'},activeChoice:{backgroundColor:colors.navy,borderColor:colors.navy},choiceText:{fontSize:11*scale,color:colors.ink,fontWeight:'700',fontFamily,textAlign:'center'},activeChoiceText:{color:'#fff'},input:{minHeight:44,borderWidth:1,borderColor:colors.line,borderRadius:12,paddingHorizontal:12,color:colors.ink,backgroundColor:colors.paper,textAlign:'right',fontFamily,fontSize:13*scale},logoPreview:{height:100,borderRadius:14,borderWidth:1,borderColor:colors.line,backgroundColor:colors.paper,alignItems:'center',justifyContent:'center'},logoImage:{width:90,height:90},logoMissing:{color:colors.inkSub,fontFamily},rowButtons:{flexDirection:'row',gap:8,marginTop:10},primarySmall:{flex:1,backgroundColor:colors.navy,borderRadius:12,minHeight:44,alignItems:'center',justifyContent:'center'},dangerSmall:{width:90,backgroundColor:colors.danger,borderRadius:12,minHeight:44,alignItems:'center',justifyContent:'center'},whiteText:{color:'#fff',fontWeight:'800',fontFamily},switchRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:9,borderBottomWidth:1,borderBottomColor:colors.line},marginGrid:{flexDirection:'row',flexWrap:'wrap',gap:8},marginCell:{width:'48%'},smallLabel:{fontSize:11,color:colors.inkSub,fontFamily},save:{margin:14,marginTop:0,minHeight:54,borderRadius:16,backgroundColor:colors.navy,alignItems:'center',justifyContent:'center'},saveText:{color:'#fff',fontSize:15*scale,fontWeight:'900',fontFamily}
+ container:{flex:1,backgroundColor:colors.paper},content:{paddingBottom:40},header:{backgroundColor:colors.headerBg,padding:18,flexDirection:'row',alignItems:'center'},back:{width:40,height:40,borderRadius:12,backgroundColor:'rgba(255,255,255,.12)',alignItems:'center',justifyContent:'center',marginRight:12},backText:{color:'#fff',fontSize:30},kicker:{color:'#B7E8E2',fontSize:11*scale,fontWeight:'700',fontFamily},title:{color:'#fff',fontSize:23*scale,fontWeight:'900',fontFamily},section:{margin:14,padding:16,borderRadius:18,backgroundColor:colors.panel,borderWidth:1,borderColor:colors.line,...SHADOWS.sm},templatePreview:{marginTop:10,borderWidth:1,borderColor:colors.line,borderRadius:14,padding:10,backgroundColor:colors.paper},previewBar:{height:7,borderRadius:6,backgroundColor:colors.navy,marginBottom:8},previewModern:{backgroundColor:colors.seal},previewCompact:{height:4},previewTitle:{textAlign:'center',fontSize:12*scale,fontWeight:'900',color:colors.ink,fontFamily,marginBottom:8},previewLines:{gap:5},sectionTitle:{fontSize:16*scale,fontWeight:'900',color:colors.ink,fontFamily,marginBottom:14},help:{fontSize:11*scale,color:colors.inkSub,fontFamily,lineHeight:18,marginBottom:10},label:{fontSize:13*scale,color:colors.ink,fontWeight:'800',fontFamily,marginTop:10,marginBottom:6},choices:{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:8},choice:{flex:1,minWidth:92,paddingVertical:11,paddingHorizontal:8,borderRadius:12,borderWidth:1,borderColor:colors.line,backgroundColor:colors.paper,alignItems:'center'},activeChoice:{backgroundColor:colors.navy,borderColor:colors.navy},choiceText:{fontSize:11*scale,color:colors.ink,fontWeight:'700',fontFamily,textAlign:'center'},activeChoiceText:{color:'#fff'},input:{minHeight:44,borderWidth:1,borderColor:colors.line,borderRadius:12,paddingHorizontal:12,color:colors.ink,backgroundColor:colors.paper,textAlign:'right',fontFamily,fontSize:13*scale},logoPreview:{height:100,borderRadius:14,borderWidth:1,borderColor:colors.line,backgroundColor:colors.paper,alignItems:'center',justifyContent:'center'},logoImage:{width:90,height:90},logoMissing:{color:colors.inkSub,fontFamily},rowButtons:{flexDirection:'row',gap:8,marginTop:10},primarySmall:{flex:1,backgroundColor:colors.navy,borderRadius:12,minHeight:44,alignItems:'center',justifyContent:'center'},dangerSmall:{width:90,backgroundColor:colors.danger,borderRadius:12,minHeight:44,alignItems:'center',justifyContent:'center'},whiteText:{color:'#fff',fontWeight:'800',fontFamily},switchRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:9,borderBottomWidth:1,borderBottomColor:colors.line},marginGrid:{flexDirection:'row',flexWrap:'wrap',gap:8},marginCell:{width:'48%'},smallLabel:{fontSize:11,color:colors.inkSub,fontFamily},save:{margin:14,marginTop:0,minHeight:54,borderRadius:16,backgroundColor:colors.navy,alignItems:'center',justifyContent:'center'},saveText:{color:'#fff',fontSize:15*scale,fontWeight:'900',fontFamily}
 });

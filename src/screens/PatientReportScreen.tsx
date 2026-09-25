@@ -329,6 +329,14 @@ export default function PatientReportScreen({
             />
           </View>
 
+          {patient.pricing ? (
+            <View style={styles.paymentPanel}>
+              <View><Text style={styles.paymentLabel}>السعر</Text><Text style={styles.paymentValue}>{patient.pricing.complete ? `${Number(patient.pricing.total || 0).toLocaleString('en-US')} د.ع` : 'غير مكتمل'}</Text></View>
+              <View><Text style={styles.paymentLabel}>المدفوع</Text><Text style={styles.paymentValue}>{Number(patient.pricing.paid || 0).toLocaleString('en-US')} د.ع</Text></View>
+              <View><Text style={styles.paymentLabel}>المتبقي</Text><Text style={styles.paymentValue}>{patient.pricing.remaining == null ? '—' : `${Number(patient.pricing.remaining || 0).toLocaleString('en-US')} د.ع`}</Text></View>
+            </View>
+          ) : null}
+
           {/* أقسام النتائج */}
           {sections.map(
             (key: SectionKey) => (
@@ -513,13 +521,24 @@ function ReportSection({
    * نعرض فقط الفحوصات التي اختارها المريض والتي تحتوي على نتيجة.
    * المرضى القدامى بدون selectedTests يستمرون بالعمل بنفس الطريقة السابقة.
    */
+  const scopedSelected = Array.isArray(patient.selectedTests)
+    ? patient.selectedTests
+        .filter((id) => id.startsWith(`${sectionKey}.`))
+        .map((id) => id.slice(sectionKey.length + 1))
+    : [];
+  const hasStoredSelection = scopedSelected.length > 0;
   const selectedKeys = new Set<string>(
-    Array.isArray(patient.selectedTests) && patient.selectedTests.length
-      ? patient.selectedTests
-          .filter((id) => id.startsWith(`${sectionKey}.`))
-          .map((id) => id.slice(sectionKey.length + 1))
+    hasStoredSelection
+      ? scopedSelected
       : section.fields.map((f: any) => f.key),
   );
+  // توافق مع السجلات القديمة/المستوردة: إذا كانت قائمة الاختبارات موجودة
+  // لكنها لا تطابق مفاتيح هذا القسم، نطبع النتائج الموجودة فعلياً بدل إخفائها.
+  if (Array.isArray(patient.selectedTests) && patient.selectedTests.length && !hasStoredSelection) {
+    section.fields.forEach((f: any) => {
+      if (String(data[f.key] ?? '').trim() !== '') selectedKeys.add(f.key);
+    });
+  }
   const baseRows = section.fields.filter((f: any) => selectedKeys.has(f.key));
   const baseKeys = new Set(baseRows.map((f: any) => f.key));
   const customRows = (testCatalog || [])
@@ -1072,7 +1091,8 @@ const createStyles = (
       marginTop: 14,
     },
 
-    actions: {
+    paymentPanel: { marginTop: 10, padding: 12, borderRadius: 14, backgroundColor: c.sealLight, borderWidth: 1, borderColor: c.line, flexDirection: 'row', justifyContent: 'space-between', gap: 8 }, paymentLabel: { color: c.inkSub, fontSize: 10 * s, fontFamily: f, fontWeight: '800' }, paymentValue: { color: c.navy, fontSize: 12 * s, fontFamily: f, fontWeight: '900', marginTop: 3 }, paymentAction: { minHeight: 48, borderRadius: 14, borderWidth: 1, borderColor: c.line, backgroundColor: c.sealLight, alignItems: 'center', justifyContent: 'center', marginBottom: 9 }, paymentActionText: { color: c.navy, fontSize: 13 * s, fontWeight: '900', fontFamily: f },
+  actions: {
       padding: 14,
       gap: 9,
     },

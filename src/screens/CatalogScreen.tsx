@@ -1,15 +1,19 @@
 import React, { useMemo, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useLabStore } from '../store/useLabStore';
 import { getColors } from '../styles/colors';
 import { resolveFontFamily, fontScale } from '../styles/design';
 import { PatientCard } from '../components/PatientCard';
 import ThemedButton from '../components/ThemedButton';
 import { SECTION_KEYS, TEST_SECTIONS } from '../utils/constants';
+import { exportPatientPdf, printPatient } from '../services/exportService';
 
 export default function CatalogScreen({navigation}:any){
  const patients=useLabStore(s=>s.patients);const dark=useLabStore(s=>s.darkMode);const theme=useLabStore(s=>s.theme);const fam=useLabStore(s=>s.fontFamily);const fs=useLabStore(s=>s.fontSize);
  const c=getColors(dark,theme);const styles=createStyles(c,resolveFontFamily(fam),fontScale(fs));const [q,setQ]=useState('');const [filter,setFilter]=useState<string>('all');
+ const testCatalog=useLabStore(s=>s.testCatalog);
+ const settings=useLabStore(s=>s.settings);
+ const runFile=async(p:any,type:'pdf'|'print')=>{try{const exportSettings={...settings,__catalog:testCatalog}; if(type==='pdf'){await exportPatientPdf(p,exportSettings,settings.printSettings||{});Alert.alert('تم','تم إنشاء ومشاركة PDF للمريض.');}else{await printPatient(p,exportSettings,settings.printSettings||{});}}catch(e:any){Alert.alert('خطأ',e?.message||'تعذر تنفيذ العملية.');}};
  const filtered=useMemo(()=>patients.filter(p=>{const ok=!q.trim()||`${p.name} ${p.seq}`.toLowerCase().includes(q.trim().toLowerCase());if(!ok)return false;if(filter==='all')return true;return !!(p as any)[`include${filter[0].toUpperCase()}${filter.slice(1)}`]}),[patients,q,filter]);
  return <SafeAreaView style={styles.container}><ScrollView contentContainerStyle={styles.content}>
   <View style={styles.header}><Text style={styles.kicker}>السجلات</Text><Text style={styles.title}>المرضى والنتائج</Text><Text style={styles.subtitle}>{filtered.length} من أصل {patients.length} سجل</Text></View>
@@ -18,7 +22,7 @@ export default function CatalogScreen({navigation}:any){
    <TouchableOpacity onPress={()=>setFilter('all')} style={[styles.filter,filter==='all'&&styles.active]}><Text style={[styles.filterText,filter==='all'&&styles.activeText]}>الكل</Text></TouchableOpacity>
    {SECTION_KEYS.map(k=><TouchableOpacity key={k} onPress={()=>setFilter(k.toLowerCase())} style={[styles.filter,filter===k.toLowerCase()&&styles.active]}><Text style={[styles.filterText,filter===k.toLowerCase()&&styles.activeText]}>{TEST_SECTIONS[k].label}</Text></TouchableOpacity>)}
   </ScrollView>
-  {filtered.length?filtered.map(p=><PatientCard key={p.id} patient={p} onPress={()=>navigation.navigate('PatientReport',{id:p.id})}/>):<View style={styles.empty}><Text style={styles.emptyTitle}>لا توجد نتائج</Text><Text style={styles.emptyText}>جرّب تغيير البحث أو الفلتر.</Text><ThemedButton title="إضافة مريض" onPress={()=>navigation.navigate('PatientForm')} style={{marginTop:14,width:'80%'}}/></View>}
+  {filtered.length?filtered.map(p=><PatientCard key={p.id} patient={p} onPress={()=>navigation.navigate('PatientReport',{id:p.id})} onEdit={()=>navigation.navigate('PatientForm',{id:p.id})} onResults={()=>navigation.navigate('ResultEntry',{id:p.id})} onPrint={()=>runFile(p,'print')} onPdf={()=>runFile(p,'pdf')}/>):<View style={styles.empty}><Text style={styles.emptyTitle}>لا توجد نتائج</Text><Text style={styles.emptyText}>جرّب تغيير البحث أو الفلتر.</Text><ThemedButton title="إضافة مريض" onPress={()=>navigation.navigate('PatientForm')} style={{marginTop:14,width:'80%'}}/></View>}
  </ScrollView>
  <TouchableOpacity style={styles.fab} onPress={()=>navigation.navigate('PatientForm')}><Text style={styles.fabText}>＋</Text></TouchableOpacity>
  </SafeAreaView>

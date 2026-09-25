@@ -9,11 +9,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useLabStore, Patient } from '../store/useLabStore';
+import { useLabStore, Patient, PatientPricing } from '../store/useLabStore';
 import { getColors } from '../styles/colors';
 import { resolveFontFamily, fontScale } from '../styles/design';
 import { SHADOWS } from '../styles/spacing';
-import { uid } from '../utils/helpers';
+import { uid, todayISO } from '../utils/helpers';
 import ThemedButton from '../components/ThemedButton';
 import { SECTION_KEYS, TEST_SECTIONS, SectionKey } from '../utils/constants';
 
@@ -39,12 +39,28 @@ export default function PatientFormScreen({ route, navigation }: any) {
   const [age, setAge] = useState('');
   const [gender, setGender] = useState('ذكر');
   const [notes, setNotes] = useState('');
+  const [paidAmount, setPaidAmount] = useState('0');
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const [selectedTests, setSelectedTests] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
+  const today = todayISO();
+  const getNextDailySequence = (dateValue: string) => {
+    let max = 0;
+    patients.forEach((p) => {
+      if ((p.date || '') !== dateValue) return;
+      const n = parseInt(String(p.seq || '').replace(/\D/g, ''), 10);
+      if (Number.isFinite(n) && n > max) max = n;
+    });
+    return String(max + 1);
+  };
+
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setSeq(getNextDailySequence(today));
+      setPaidAmount('0');
+      return;
+    }
     const p = patients.find((x) => x.id === id);
     if (!p) return;
     setName(p.name || '');
@@ -52,6 +68,7 @@ export default function PatientFormScreen({ route, navigation }: any) {
     setAge(p.age || '');
     setGender(p.gender || 'ذكر');
     setNotes(p.notes || '');
+    setPaidAmount(String(p.pricing?.paid ?? 0));
 
     const selected: string[] = Array.isArray(p.selectedTests) && p.selectedTests.length
       ? p.selectedTests
@@ -107,6 +124,15 @@ export default function PatientFormScreen({ route, navigation }: any) {
     return sum + (Number.isFinite(price) ? price : 0);
   }, 0), [selectedItems, testPrices]);
 
+  const pricingComplete = useMemo(() => selectedItems.length > 0 && selectedItems.every((test) => {
+    const key = test.key || test.id;
+    const raw = typeof test.price === 'number' ? test.price : testPrices?.[key];
+    return raw !== undefined && raw !== null && Number.isFinite(Number(raw)) && Number(raw) > 0;
+  }), [selectedItems, testPrices]);
+
+  const paidNumeric = Math.max(0, Number(paidAmount || 0) || 0);
+  const remainingAmount = pricingComplete ? Math.max(0, totalPrice - Math.min(paidNumeric, totalPrice)) : 0;
+
   const toggleSection = (key: SectionKey) => {
     if (busy) return;
     setOpenSections((current) => ({ ...current, [key]: !current[key] }));
@@ -135,10 +161,11 @@ export default function PatientFormScreen({ route, navigation }: any) {
     const cleanName = name.trim();
     const cleanSeq = seq.trim();
     const cleanAge = age.trim();
-    if (!cleanName || !cleanSeq || !cleanAge) {
-      Alert.alert('بيانات ناقصة', 'أدخل الاسم ورقم السجل والعمر.');
+    if (!cleanName) {
+      Alert.alert('بيانات ناقصة', 'أدخل اسم المريض.');
       return;
     }
+    const finalSeq = cleanSeq || getNextDailySequence(today);
     if (!selectedTests.length) {
       Alert.alert('الفحوصات المطلوبة', 'حدد فحصًا واحدًا على الأقل من الأقسام.');
       return;
@@ -147,19 +174,20 @@ export default function PatientFormScreen({ route, navigation }: any) {
     try {
       setBusy(true);
       const selected: string[] = Array.from(new Set<string>(selectedTests));
-      const flags: Record<string, boolean> = {};
+      const flags: Pick<Patient, 'includeBlood' | 'includeChem' | 'includeUrine' | 'includeSerology' | 'includeStool' | 'includePreg'> = { includeBlood: false, includeChem: false, includeUrine: false, includeSerology: false, includeStool: false, includePreg: false };
       SECTION_KEYS.forEach((key) => {
-        flags[`include${key}`] = selected.some((x: string) => x.startsWith(`${key}.`));
+        flags[`include${key}` as keyof typeof flags] = selected.some((x: string) => x.startsWith(`${key}.`));
       });
 
       if (id) {
         await update(id, {
           name: cleanName,
-          seq: cleanSeq,
+          seq: finalSeq,
           age: cleanAge,
           gender,
           notes,
           selectedTests: selected,
+          pricing: buildPricing(selectedItems, paidAmount, testPrices),
           ...flags,
         });
         // بعد تعديل بيانات المريض نرجع مباشرة إلى التقرير.
@@ -168,13 +196,14 @@ export default function PatientFormScreen({ route, navigation }: any) {
         const patient: Patient = {
           id: uid('patient'),
           name: cleanName,
-          seq: cleanSeq,
+          seq: finalSeq,
           age: cleanAge,
           gender,
           date: new Date().toISOString().slice(0, 10),
           notes,
           blood: {}, chem: {}, urine: {}, serology: {}, stool: {}, preg: {},
           selectedTests: selected,
+          pricing: buildPricing(selectedItems, paidAmount, testPrices),
           ...flags,
         };
         await add(patient);
@@ -204,8 +233,11 @@ export default function PatientFormScreen({ route, navigation }: any) {
         <Section title="البيانات الأساسية" styles={styles}>
           <Field label="اسم المريض" value={name} onChangeText={setName} placeholder="مثال: أحمد محمد" styles={styles} editable={!busy} />
           <View style={styles.two}>
-            <View style={{ flex: 1 }}><Field label="رقم السجل" value={seq} onChangeText={setSeq} placeholder="001" styles={styles} editable={!busy} /></View>
-            <View style={{ flex: 1 }}><Field label="العمر" value={age} onChangeText={setAge} placeholder="35" keyboardType="numeric" styles={styles} editable={!busy} /></View>
+            <View style={{ flex: 1 }}>
+              <Field label="رقم السجل" value={seq} onChangeText={setSeq} placeholder="تلقائي" styles={styles} editable={!busy} />
+              <TouchableOpacity disabled={busy} onPress={() => setSeq(getNextDailySequence(today))} style={styles.autoSeqButton}><Text style={styles.autoSeqText}>↻ رقم تلقائي لليوم</Text></TouchableOpacity>
+            </View>
+            <View style={{ flex: 1 }}><Field label="العمر (اختياري)" value={age} onChangeText={setAge} placeholder="يمكن تركه فارغاً" keyboardType="numeric" styles={styles} editable={!busy} /></View>
           </View>
           <Text style={styles.label}>الجنس</Text>
           <View style={styles.choices}>
@@ -275,6 +307,15 @@ export default function PatientFormScreen({ route, navigation }: any) {
           <Text style={styles.summaryValue}>{totalPrice.toLocaleString('en-US')} د.ع</Text>
         </View>
 
+        <Section title="الأسعار والدفع" styles={styles}>
+          <View style={styles.paymentSummary}>
+            <View><Text style={styles.paymentLabel}>إجمالي الفحوصات</Text><Text style={styles.paymentValue}>{totalPrice > 0 ? `${totalPrice.toLocaleString('en-US')} د.ع` : 'غير مكتمل التسعير'}</Text></View>
+            <View><Text style={styles.paymentLabel}>المتبقي</Text><Text style={styles.paymentValue}>{pricingComplete ? `${remainingAmount.toLocaleString('en-US')} د.ع` : '—'}</Text></View>
+          </View>
+          <Field label="المبلغ المدفوع (د.ع)" value={paidAmount} onChangeText={(v) => setPaidAmount(v.replace(/[^0-9]/g, ''))} placeholder="0" keyboardType="numeric" styles={styles} editable={!busy} />
+          <Text style={styles.paymentHint}>{pricingComplete ? 'يمكن تعديل المبلغ المدفوع، وسيُحسب المتبقي تلقائياً.' : 'بعض الفحوصات بلا سعر محدد؛ حدّث الأسعار من إدارة أسعار الفحوصات.'}</Text>
+        </Section>
+
         <Section title="ملاحظات" styles={styles}>
           <TextInput value={notes} onChangeText={setNotes} multiline numberOfLines={5} textAlignVertical="top" editable={!busy} placeholder="ملاحظات اختيارية" placeholderTextColor={colors.inkSub} style={[styles.input, { minHeight: 110, paddingTop: 12 }]} />
         </Section>
@@ -286,6 +327,23 @@ export default function PatientFormScreen({ route, navigation }: any) {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+
+function buildPricing(items: any[], paidText: string, prices: Record<string, number> = {}): PatientPricing {
+  const getPrice = (test: any) => {
+    const key = test.key || test.id;
+    const raw = typeof test.price === 'number' && test.price > 0 ? test.price : prices?.[key];
+    return Number(raw || 0);
+  };
+  const total = items.reduce((sum, test) => {
+    const price = getPrice(test);
+    return sum + (Number.isFinite(price) ? price : 0);
+  }, 0);
+  const complete = items.length > 0 && items.every((test) => getPrice(test) > 0);
+  const paidRaw = Math.max(0, Number(paidText || 0) || 0);
+  const paid = complete ? Math.min(paidRaw, total) : paidRaw;
+  return { total, paid, remaining: complete ? Math.max(0, total - paid) : null, complete, currency: 'IQD', pricedAt: new Date().toISOString() };
 }
 
 function Section({ title, children, styles }: any) {
@@ -302,10 +360,11 @@ const createStyles = (c: any, f: string, s: number) => StyleSheet.create({
   kicker:{color:'#B7E8E2',fontSize:11*s,fontWeight:'700',fontFamily:f}, title:{color:'#fff',fontSize:22*s,fontWeight:'900',fontFamily:f,marginTop:2},
   section:{margin:14,padding:16,borderRadius:18,backgroundColor:c.panel,borderWidth:1,borderColor:c.line,...SHADOWS.sm}, sectionTitle:{fontSize:16*s,fontWeight:'900',color:c.ink,fontFamily:f,marginBottom:12},
   label:{fontSize:12*s,color:c.ink,fontWeight:'800',fontFamily:f,marginBottom:5}, input:{minHeight:46,borderRadius:13,borderWidth:1,borderColor:c.line,backgroundColor:c.paper,paddingHorizontal:12,color:c.ink,textAlign:'right',fontFamily:f,fontSize:13*s},
-  two:{flexDirection:'row',gap:10}, choices:{flexDirection:'row',gap:8}, choice:{flex:1,minHeight:44,borderRadius:13,borderWidth:1,borderColor:c.line,backgroundColor:c.paper,alignItems:'center',justifyContent:'center'}, active:{backgroundColor:c.navy,borderColor:c.navy}, choiceText:{fontSize:13*s,fontWeight:'800',color:c.ink,fontFamily:f}, activeText:{color:'#fff'},
+  two:{flexDirection:'row',gap:10}, autoSeqButton:{alignSelf:'flex-start',marginTop:5,paddingHorizontal:9,paddingVertical:6,borderRadius:9,backgroundColor:c.sealLight,borderWidth:1,borderColor:c.line}, autoSeqText:{color:c.navy,fontSize:10*s,fontWeight:'900',fontFamily:f}, choices:{flexDirection:'row',gap:8}, choice:{flex:1,minHeight:44,borderRadius:13,borderWidth:1,borderColor:c.line,backgroundColor:c.paper,alignItems:'center',justifyContent:'center'}, active:{backgroundColor:c.navy,borderColor:c.navy}, choiceText:{fontSize:13*s,fontWeight:'800',color:c.ink,fontFamily:f}, activeText:{color:'#fff'},
   help:{fontSize:11*s,color:c.inkSub,fontFamily:f,lineHeight:18,marginBottom:10}, sectionGrid:{flexDirection:'row',flexWrap:'wrap',gap:9}, sectionChip:{width:'31.5%',minHeight:82,borderRadius:15,borderWidth:1,borderColor:c.line,backgroundColor:c.paper,padding:9,alignItems:'center',justifyContent:'center'}, sectionChipActive:{backgroundColor:c.navy,borderColor:c.navy}, sectionIcon:{fontSize:22,marginBottom:3}, sectionChipText:{fontSize:11*s,fontWeight:'900',fontFamily:f,color:c.ink}, countBadge:{marginTop:4,minWidth:23,height:23,borderRadius:12,backgroundColor:c.line,color:c.ink,overflow:'hidden',textAlign:'center',fontSize:10*s,fontWeight:'900',paddingTop:4}, countBadgeActive:{backgroundColor:'rgba(255,255,255,.2)',color:'#fff'},
   sectionTools:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:8}, selectAll:{paddingHorizontal:12,paddingVertical:8,borderRadius:11,backgroundColor:c.sealLight,borderWidth:1,borderColor:c.line}, selectAllText:{color:c.navy,fontSize:11*s,fontWeight:'900',fontFamily:f},
   testRow:{minHeight:72,borderRadius:14,borderWidth:1,borderColor:c.line,backgroundColor:c.paper,padding:11,marginTop:8,flexDirection:'row',alignItems:'center',gap:10}, testRowSelected:{borderColor:c.navy,backgroundColor:c.sealLight}, checkbox:{width:28,height:28,borderRadius:9,borderWidth:2,borderColor:c.line,alignItems:'center',justifyContent:'center'}, checkboxSelected:{backgroundColor:c.navy,borderColor:c.navy}, checkText:{color:'#fff',fontSize:17,fontWeight:'900'}, testName:{color:c.ink,fontSize:13*s,fontWeight:'900',fontFamily:f,textAlign:'right'}, testMeta:{color:c.inkSub,fontSize:9.5*s,fontFamily:f,marginTop:3,textAlign:'right'}, testPrice:{color:c.navy,fontSize:10*s,fontWeight:'900',fontFamily:f,maxWidth:75,textAlign:'center'},
+  paymentSummary:{flexDirection:'row',justifyContent:'space-between',gap:10,marginBottom:8,padding:13,borderRadius:14,backgroundColor:c.sealLight,borderWidth:1,borderColor:c.line}, paymentLabel:{color:c.inkSub,fontSize:10*s,fontWeight:'800',fontFamily:f}, paymentValue:{color:c.navy,fontSize:15*s,fontWeight:'900',fontFamily:f,marginTop:3}, paymentHint:{color:c.inkSub,fontSize:10*s,fontFamily:f,lineHeight:17},
   summaryCard:{marginHorizontal:14,marginTop:0,padding:16,borderRadius:16,backgroundColor:c.headerBg,flexDirection:'row',alignItems:'center',justifyContent:'space-between'}, summaryTitle:{color:'#fff',fontSize:13*s,fontWeight:'900',fontFamily:f}, summarySub:{color:'#D7EFEC',fontSize:10*s,fontFamily:f,marginTop:3}, summaryValue:{color:'#fff',fontSize:17*s,fontWeight:'900',fontFamily:f},
   actions:{margin:14,marginTop:12},
 });
