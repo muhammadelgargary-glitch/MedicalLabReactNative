@@ -18,6 +18,9 @@ import AuditScreen from '../screens/AuditScreen';
 import AppearanceSettingsScreen from '../screens/AppearanceSettingsScreen';
 import PrintSettingsScreen from '../screens/PrintSettingsScreen';
 import MultiPrintScreen from '../screens/MultiPrintScreen';
+import TestCatalogScreen from '../screens/TestCatalogScreen';
+import TestPricesScreen from '../screens/TestPricesScreen';
+import CriticalAlertsScreen from '../screens/CriticalAlertsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -60,6 +63,10 @@ function HomeStack() {
         component={SettingsScreen}
       />
 
+      <Stack.Screen name="TestCatalog" component={TestCatalogScreen} />
+      <Stack.Screen name="TestPrices" component={TestPricesScreen} />
+      <Stack.Screen name="CriticalAlerts" component={CriticalAlertsScreen} />
+
       <Stack.Screen
         name="Appearance"
         component={AppearanceSettingsScreen}
@@ -100,6 +107,11 @@ function CatalogStack() {
         name="ResultEntry"
         component={ResultEntryScreen}
       />
+
+      <Stack.Screen name="MultiPrint" component={MultiPrintScreen} />
+      <Stack.Screen name="TestCatalog" component={TestCatalogScreen} />
+      <Stack.Screen name="TestPrices" component={TestPricesScreen} />
+      <Stack.Screen name="CriticalAlerts" component={CriticalAlertsScreen} />
     </Stack.Navigator>
   );
 }
@@ -141,6 +153,10 @@ function SettingsStack() {
         name="ResultEntry"
         component={ResultEntryScreen}
       />
+
+      <Stack.Screen name="TestCatalog" component={TestCatalogScreen} />
+      <Stack.Screen name="TestPrices" component={TestPricesScreen} />
+      <Stack.Screen name="CriticalAlerts" component={CriticalAlertsScreen} />
     </Stack.Navigator>
   );
 }
