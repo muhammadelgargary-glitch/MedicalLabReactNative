@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeType } from '../styles/theme';
+import { buildDefaultTestCatalog } from '../utils/constants';
 
-export type FontSizeKey = 'small' | 'medium' | 'large';
+export type FontSizeKey = 'small' | 'medium' | 'large' | number;
 export type FontFamilyKey = 'sans' | 'serif' | 'mono';
 export type DensityKey = 'comfortable' | 'compact';
 
@@ -122,6 +123,9 @@ export interface Patient {
   includeSerology: boolean;
   includeStool: boolean;
   includePreg: boolean;
+
+  /** الفحوصات المحددة فعلياً للمريض بصيغة Section.field */
+  selectedTests?: string[];
 }
 
 export interface AuditEntry {
@@ -130,10 +134,23 @@ export interface AuditEntry {
   patientName: string;
 }
 
+export interface CriticalAlert {
+  id: string;
+  timestamp: string;
+  patientId: string;
+  patientName: string;
+  testKey: string;
+  testName: string;
+  value: string;
+  rule: string;
+}
+
 interface LabStoreState {
   patients: Patient[];
   settings: Settings;
   auditLog: AuditEntry[];
+  criticalAlerts: CriticalAlert[];
+  criticalAlertsEnabled: boolean;
 
   /**
    * دليل الفحوصات.
@@ -178,6 +195,9 @@ interface LabStoreState {
   ) => Promise<void>;
 
   clearAuditLog: () => Promise<void>;
+  addCriticalAlert: (alert: Omit<CriticalAlert, 'id' | 'timestamp'>) => Promise<void>;
+  clearCriticalAlerts: () => Promise<void>;
+  setCriticalAlertsEnabled: (enabled: boolean) => Promise<void>;
 
   toggleDarkMode: () => Promise<void>;
   setTheme: (theme: ThemeType) => Promise<void>;
@@ -257,6 +277,8 @@ const STORAGE_KEYS = {
   FONT_SIZE: 'lab_fontSize',
   FONT_FAMILY: 'lab_fontFamily',
   DENSITY: 'lab_density',
+  CRITICAL_ALERTS: 'lab_critical_alerts',
+  CRITICAL_ALERTS_ENABLED: 'lab_critical_alerts_enabled',
 
   TEST_CATALOG: 'lab_test_catalog',
   TEST_PRICES: 'lab_test_prices',
@@ -420,6 +442,8 @@ export const useLabStore =
       patients: [],
       settings: DEFAULT_SETTINGS,
       auditLog: [],
+      criticalAlerts: [],
+      criticalAlertsEnabled: true,
 
       testCatalog: [],
       testPrices: {},
@@ -814,6 +838,36 @@ export const useLabStore =
         );
       },
 
+      addCriticalAlert: async (alert) => {
+        const item: CriticalAlert = {
+          ...alert,
+          id: `critical_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          timestamp: new Date().toISOString(),
+        };
+        const next = [item, ...get().criticalAlerts].slice(0, 200);
+        set({ criticalAlerts: next });
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.CRITICAL_ALERTS,
+          JSON.stringify(next),
+        );
+      },
+
+      clearCriticalAlerts: async () => {
+        set({ criticalAlerts: [] });
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.CRITICAL_ALERTS,
+          JSON.stringify([]),
+        );
+      },
+
+      setCriticalAlertsEnabled: async (enabled) => {
+        set({ criticalAlertsEnabled: enabled });
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.CRITICAL_ALERTS_ENABLED,
+          JSON.stringify(enabled),
+        );
+      },
+
       replaceAuditLog: async (
         auditLog
       ) => {
@@ -881,7 +935,7 @@ export const useLabStore =
 
         await AsyncStorage.setItem(
           STORAGE_KEYS.FONT_SIZE,
-          fontSize
+          String(fontSize)
         );
       },
 
@@ -1382,6 +1436,9 @@ export const useLabStore =
             AsyncStorage.removeItem(
               STORAGE_KEYS.AUDIT_LOG
             ),
+            AsyncStorage.removeItem(
+              STORAGE_KEYS.CRITICAL_ALERTS
+            ),
           ]);
 
           /*
@@ -1397,6 +1454,7 @@ export const useLabStore =
           set({
             patients: [],
             auditLog: [],
+            criticalAlerts: [],
           });
         },
 
@@ -1442,6 +1500,14 @@ export const useLabStore =
                 ),
 
                 AsyncStorage.getItem(
+                  STORAGE_KEYS.CRITICAL_ALERTS
+                ),
+
+                AsyncStorage.getItem(
+                  STORAGE_KEYS.CRITICAL_ALERTS_ENABLED
+                ),
+
+                AsyncStorage.getItem(
                   STORAGE_KEYS.TEST_CATALOG
                 ),
 
@@ -1459,6 +1525,8 @@ export const useLabStore =
               fontSizeStr,
               fontFamilyStr,
               densityStr,
+              criticalAlertsStr,
+              criticalAlertsEnabledStr,
               catalogStr,
               pricesStr,
             ] = values;
@@ -1533,6 +1601,16 @@ export const useLabStore =
                 parsedPrices =
                   {};
               }
+            }
+
+            /*
+             * إنشاء دليل افتراضي من الفحوصات الأصلية عند أول تشغيل
+             * حتى تظهر شاشة دليل الفحوصات دائماً.
+             */
+            if (parsedCatalog.length === 0) {
+              parsedCatalog = buildDefaultTestCatalog().map((item: any) =>
+                normalizeTestMetadata(item),
+              );
             }
 
             /*
@@ -1628,6 +1706,25 @@ export const useLabStore =
               }
             }
 
+            let parsedCriticalAlerts: CriticalAlert[] = [];
+            if (criticalAlertsStr) {
+              try {
+                const value = JSON.parse(criticalAlertsStr);
+                if (Array.isArray(value)) parsedCriticalAlerts = value;
+              } catch {
+                parsedCriticalAlerts = [];
+              }
+            }
+
+            let parsedCriticalAlertsEnabled = true;
+            if (criticalAlertsEnabledStr) {
+              try {
+                parsedCriticalAlertsEnabled = JSON.parse(criticalAlertsEnabledStr) !== false;
+              } catch {
+                parsedCriticalAlertsEnabled = true;
+              }
+            }
+
             set({
               patients:
                 parsedPatients,
@@ -1648,6 +1745,9 @@ export const useLabStore =
               auditLog:
                 parsedAuditLog,
 
+              criticalAlerts: parsedCriticalAlerts,
+              criticalAlertsEnabled: parsedCriticalAlertsEnabled,
+
               darkMode: darkStr
                 ? JSON.parse(
                     darkStr
@@ -1659,8 +1759,9 @@ export const useLabStore =
                 'default',
 
               fontSize:
-                (fontSizeStr as FontSizeKey) ||
-                'medium',
+                fontSizeStr && !Number.isNaN(Number(fontSizeStr))
+                  ? Number(fontSizeStr)
+                  : ((fontSizeStr as FontSizeKey) || 'medium'),
 
               fontFamily:
                 (fontFamilyStr as FontFamilyKey) ||
