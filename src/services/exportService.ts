@@ -389,18 +389,29 @@ function pageCss(p: Required<PrintOptions>) {
   `;
 }
 
-function getSectionResults(patient: any, key: any) {
+function getSectionResults(patient: any, key: any, catalog: any[] = []) {
   const section = TEST_SECTIONS[key];
-
   if (!section) return [];
-
   const data = patient?.[section.dataKey] || {};
 
-  return section.fields
-    .map((field: any) => ({
-      ...field,
-      value: data[field.key] ?? '',
-    }))
+  const selectedKeys = new Set<string>(
+    Array.isArray(patient?.selectedTests) && patient.selectedTests.length
+      ? patient.selectedTests.filter((id: string) => id.startsWith(`${key}.`)).map((id: string) => id.slice(key.length + 1))
+      : section.fields.map((field: any) => field.key),
+  );
+
+  const base = section.fields.filter((field: any) => selectedKeys.has(field.key));
+  const baseKeys = new Set(base.map((field: any) => field.key));
+  const custom = (catalog || [])
+    .filter((item: any) => item?.enabled !== false && item?.section === key && selectedKeys.has(item.key) && !baseKeys.has(item.key))
+    .map((item: any) => ({
+      key: item.key,
+      label: item.name || item.key,
+      normal: item.referenceRange || '',
+    }));
+
+  return [...base, ...custom]
+    .map((field: any) => ({ ...field, value: data[field.key] ?? '' }))
     .filter((x: any) => hasValue(x.value));
 }
 
@@ -565,7 +576,7 @@ function reportBody(
     .map((key: any) => {
       const section = TEST_SECTIONS[key];
 
-      const rows = getSectionResults(patient, key)
+      const rows = getSectionResults(patient, key, settings?.__catalog || [])
         .map(
           (item: any) => `
             <tr>
