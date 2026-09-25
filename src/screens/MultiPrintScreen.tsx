@@ -8,6 +8,7 @@ import { exportMultiplePatientsPdf, printMultiplePatients } from '../services/ex
 export default function MultiPrintScreen({ navigation }: any) {
   const patients = useLabStore((s)=>s.patients);
   const settings = useLabStore((s)=>s.settings);
+  const testCatalog = useLabStore((s)=>s.testCatalog);
   const dark = useLabStore((s)=>s.darkMode);
   const theme = useLabStore((s)=>s.theme);
   const family = useLabStore((s)=>s.fontFamily);
@@ -36,8 +37,8 @@ export default function MultiPrintScreen({ navigation }: any) {
       <View style={{flex:1}}><Text style={styles.name}>{p.name}</Text><Text style={styles.meta}>#{p.seq} • {p.age} • {p.gender}</Text></View>
     </TouchableOpacity>)}
     <View style={styles.actions}>
-      <TouchableOpacity disabled={busy} onPress={()=>run(()=>printMultiplePatients(chosen,settings,{...(settings.printSettings||{}),layout}),'تم إرسال التقارير للطباعة')} style={styles.primary}><Text style={styles.primaryText}>طباعة التقارير المحددة</Text></TouchableOpacity>
-      <TouchableOpacity disabled={busy} onPress={()=>run(()=>exportMultiplePatientsPdf(chosen,settings,{...(settings.printSettings||{}),layout}),'تم إنشاء PDF للتقارير المحددة')} style={styles.secondary}><Text style={styles.secondaryText}>إنشاء PDF ومشاركة</Text></TouchableOpacity>
+      <TouchableOpacity disabled={busy} onPress={()=>run(()=>printMultiplePatients(chosen,{...settings,__catalog:testCatalog},{...(settings.printSettings||{}),layout}),'تم إرسال التقارير للطباعة')} style={styles.primary}><Text style={styles.primaryText}>طباعة التقارير المحددة</Text></TouchableOpacity>
+      <TouchableOpacity disabled={busy} onPress={()=>run(()=>exportMultiplePatientsPdf(chosen,{...settings,__catalog:testCatalog},{...(settings.printSettings||{}),layout}),'تم إنشاء PDF للتقارير المحددة')} style={styles.secondary}><Text style={styles.secondaryText}>إنشاء PDF ومشاركة</Text></TouchableOpacity>
     </View>
   </ScrollView>{busy&&<View style={styles.busy}><Text style={styles.busyText}>جارٍ تجهيز التقارير…</Text></View>}</SafeAreaView>;
 }

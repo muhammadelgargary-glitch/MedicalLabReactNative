@@ -38,6 +38,8 @@ export default function SettingsScreen({ navigation }: any) {
   const settings = useLabStore((s) => s.settings);
   const patients = useLabStore((s) => s.patients);
   const auditLog = useLabStore((s) => s.auditLog);
+  const criticalAlerts = useLabStore((s) => s.criticalAlerts);
+  const criticalAlertsEnabled = useLabStore((s) => s.criticalAlertsEnabled);
 
   // البيانات الجديدة
   const testCatalog = useLabStore((s) => s.testCatalog);
@@ -46,6 +48,9 @@ export default function SettingsScreen({ navigation }: any) {
   const updateSettings = useLabStore((s) => s.updateSettings);
   const replacePatients = useLabStore((s) => s.replacePatients);
   const replaceAuditLog = useLabStore((s) => s.replaceAuditLog);
+  const clearCriticalAlerts = useLabStore((s) => s.clearCriticalAlerts);
+  const addCriticalAlert = useLabStore((s) => s.addCriticalAlert);
+  const setCriticalAlertsEnabled = useLabStore((s) => s.setCriticalAlertsEnabled);
 
   // استرجاع دليل الفحوصات والأسعار
   const replaceCatalogAndPrices = useLabStore(
@@ -123,6 +128,10 @@ export default function SettingsScreen({ navigation }: any) {
         {
           catalog: testCatalog,
           prices: testPrices,
+          appPreferences: {
+            criticalAlerts,
+            criticalAlertsEnabled,
+          },
         },
       );
 
@@ -173,6 +182,25 @@ export default function SettingsScreen({ navigation }: any) {
        */
       if (Array.isArray(data.auditLog)) {
         await replaceAuditLog(data.auditLog);
+      }
+
+      if (data.appPreferences?.criticalAlertsEnabled !== undefined) {
+        await setCriticalAlertsEnabled(data.appPreferences.criticalAlertsEnabled !== false);
+      }
+      if (Array.isArray(data.appPreferences?.criticalAlerts)) {
+        // سجل التنبيهات جزء من النسخة، ونحافظ على البيانات الموجودة إذا لم يوجد الحقل.
+        const restoredAlerts = data.appPreferences.criticalAlerts;
+        await clearCriticalAlerts();
+        for (const alert of restoredAlerts.slice(0, 200)) {
+          await addCriticalAlert({
+            patientId: alert.patientId || '',
+            patientName: alert.patientName || '',
+            testKey: alert.testKey || '',
+            testName: alert.testName || '',
+            value: alert.value || '',
+            rule: alert.rule || '',
+          });
+        }
       }
 
       /*
@@ -240,6 +268,7 @@ export default function SettingsScreen({ navigation }: any) {
         // البيانات الجديدة
         catalog: testCatalog,
         prices: testPrices,
+        appPreferences: { criticalAlerts, criticalAlertsEnabled },
       };
 
       await uploadBackupToDrive(payload as any);
@@ -297,6 +326,25 @@ export default function SettingsScreen({ navigation }: any) {
        */
       if (Array.isArray(data.auditLog)) {
         await replaceAuditLog(data.auditLog);
+      }
+
+      if (data.appPreferences?.criticalAlertsEnabled !== undefined) {
+        await setCriticalAlertsEnabled(data.appPreferences.criticalAlertsEnabled !== false);
+      }
+      if (Array.isArray(data.appPreferences?.criticalAlerts)) {
+        // سجل التنبيهات جزء من النسخة، ونحافظ على البيانات الموجودة إذا لم يوجد الحقل.
+        const restoredAlerts = data.appPreferences.criticalAlerts;
+        await clearCriticalAlerts();
+        for (const alert of restoredAlerts.slice(0, 200)) {
+          await addCriticalAlert({
+            patientId: alert.patientId || '',
+            patientName: alert.patientName || '',
+            testKey: alert.testKey || '',
+            testName: alert.testName || '',
+            value: alert.value || '',
+            rule: alert.rule || '',
+          });
+        }
       }
 
       /*
@@ -469,6 +517,33 @@ export default function SettingsScreen({ navigation }: any) {
         </Section>
 
         <Section
+          title="إدارة المختبر"
+          subtitle="الفحوصات والأسعار والتنبيهات والقيم المرجعية"
+          styles={styles}
+        >
+          <NavRow
+            title="دليل الفحوصات والقيم المرجعية"
+            subtitle="إضافة وتعديل الفحوصات، العينة، الأنبوب، المرجع والقيمة الحرجة"
+            onPress={() => navigation.navigate('TestCatalog')}
+            styles={styles}
+          />
+
+          <NavRow
+            title="إدارة أسعار الفحوصات"
+            subtitle="تعديل سعر كل فحص وحفظه للمختبر"
+            onPress={() => navigation.navigate('TestPrices')}
+            styles={styles}
+          />
+
+          <NavRow
+            title="التنبيهات الحرجة"
+            subtitle="تفعيل التنبيه ومراجعة سجل القيم الحرجة"
+            onPress={() => navigation.navigate('CriticalAlerts')}
+            styles={styles}
+          />
+        </Section>
+
+        <Section
           title="التقارير والطباعة"
           subtitle="كل خيارات التقرير في صفحة مستقلة"
           styles={styles}
@@ -582,6 +657,14 @@ export default function SettingsScreen({ navigation }: any) {
               />
             </>
           )}
+        </Section>
+
+        <Section
+          title="التنبيهات"
+          subtitle={`${criticalAlerts.length} تنبيه محفوظ • ${criticalAlertsEnabled ? 'مفعلة' : 'متوقفة'}`}
+          styles={styles}
+        >
+          <Action label="فتح قسم التنبيهات" onPress={() => navigation.navigate('CriticalAlerts')} styles={styles} />
         </Section>
 
         <Section

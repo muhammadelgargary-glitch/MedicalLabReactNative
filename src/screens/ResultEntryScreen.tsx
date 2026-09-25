@@ -26,6 +26,8 @@ export default function ResultEntryScreen({ route, navigation }: any) {
   const patients = useLabStore((s) => s.patients);
   const updatePatient = useLabStore((s) => s.updatePatient);
   const testCatalog = useLabStore((s) => s.testCatalog);
+  const criticalAlertsEnabled = useLabStore((s) => s.criticalAlertsEnabled);
+  const addCriticalAlert = useLabStore((s) => s.addCriticalAlert);
 
   const dark = useLabStore((s) => s.darkMode);
   const theme = useLabStore((s) => s.theme);
@@ -41,24 +43,29 @@ export default function ResultEntryScreen({ route, navigation }: any) {
 
   const patient = patients.find((p) => p.id === id);
 
+  const selectedTestIds = useMemo(() => {
+    if (!patient) return [];
+    if (Array.isArray(patient.selectedTests) && patient.selectedTests.length) {
+      return patient.selectedTests;
+    }
+    // توافق مع المرضى القدامى الذين لم تكن لديهم قائمة selectedTests.
+    return SECTION_KEYS.flatMap((sectionKey) =>
+      (patient as any)[`include${sectionKey}`]
+        ? TEST_SECTIONS[sectionKey].fields.map((field) => `${sectionKey}.${field.key}`)
+        : [],
+    );
+  }, [patient]);
+
   const [values, setValues] = useState<Record<string, string>>(() => {
     if (!patient) return {};
-
     const initial: Record<string, string> = {};
-
-    SECTION_KEYS.forEach((sectionKey) => {
-      const section = TEST_SECTIONS[sectionKey];
-      const data = (patient as any)[section.dataKey] || {};
-
-      section.fields.forEach((field) => {
-        const value = data[field.key];
-
-        if (value !== undefined && value !== null) {
-          initial[`${sectionKey}.${field.key}`] = String(value);
-        }
-      });
+    selectedTestIds.forEach((testId) => {
+      const [sectionKey, fieldKey] = testId.split('.');
+      const section = TEST_SECTIONS[sectionKey as SectionKey];
+      const data = section ? ((patient as any)[section.dataKey] || {}) : {};
+      const value = data[fieldKey];
+      if (value !== undefined && value !== null) initial[testId] = String(value);
     });
-
     return initial;
   });
 
@@ -66,11 +73,30 @@ export default function ResultEntryScreen({ route, navigation }: any) {
 
   const sections = useMemo(() => {
     if (!patient) return [];
+    return SECTION_KEYS.filter((key) => selectedTestIds.some((id) => id.startsWith(`${key}.`)));
+  }, [patient, selectedTestIds]);
 
-    return SECTION_KEYS.filter((key) => {
-      return Boolean((patient as any)[`include${key}`]);
-    });
-  }, [patient]);
+  const getSelectedFields = (sectionKey: SectionKey): any[] => {
+    const allowed = new Set<string>(
+      selectedTestIds
+        .filter((id) => id.startsWith(`${sectionKey}.`))
+        .map((id) => id.slice(sectionKey.length + 1)),
+    );
+    const base = TEST_SECTIONS[sectionKey].fields.filter((field) => allowed.has(field.key));
+    const existing = new Set(base.map((field) => field.key));
+    const custom = (testCatalog || [])
+      .filter((item: any) => item?.enabled !== false && item?.section === sectionKey && allowed.has(item.key) && !existing.has(item.key))
+      .map((item: any) => ({
+        key: item.key,
+        label: item.name || item.key,
+        normal: item.referenceRange || '',
+        abbreviation: item.abbreviation || '',
+        tube: item.tube || '',
+        specimen: item.specimen || '',
+        notes: item.notes || '',
+      }));
+    return [...base, ...custom];
+  };
 
   if (!patient) {
     return (
@@ -199,23 +225,13 @@ export default function ResultEntryScreen({ route, navigation }: any) {
 
       SECTION_KEYS.forEach((sectionKey) => {
         const section = TEST_SECTIONS[sectionKey];
+        const currentData = { ...((patient as any)[section.dataKey] || {}) };
 
-        const currentData = {
-          ...((patient as any)[section.dataKey] || {}),
-        };
-
-        section.fields.forEach((field) => {
+        getSelectedFields(sectionKey).forEach((field) => {
           const key = `${sectionKey}.${field.key}`;
-
-          if (Object.prototype.hasOwnProperty.call(values, key)) {
-            const value = values[key];
-
-            if (value.trim() === '') {
-              delete currentData[field.key];
-            } else {
-              currentData[field.key] = value;
-            }
-          }
+          const value = values[key] || '';
+          if (value.trim() === '') delete currentData[field.key];
+          else currentData[field.key] = value;
         });
 
         updatedSections[section.dataKey] = currentData;
@@ -228,7 +244,7 @@ export default function ResultEntryScreen({ route, navigation }: any) {
       sections.forEach((sectionKey) => {
         const section = TEST_SECTIONS[sectionKey];
 
-        section.fields.forEach((field) => {
+        getSelectedFields(sectionKey).forEach((field) => {
           const catalogItem = getCatalogItem(
             sectionKey,
             field.key,
@@ -257,6 +273,27 @@ export default function ResultEntryScreen({ route, navigation }: any) {
           }
         });
       });
+
+      if (criticalTests.length && criticalAlertsEnabled) {
+        for (const sectionKey of sections) {
+          const section = TEST_SECTIONS[sectionKey];
+          for (const field of getSelectedFields(sectionKey)) {
+            const catalogItem = getCatalogItem(sectionKey, field.key);
+            const criticalValue = catalogItem?.criticalValue || (field as any).critical || '';
+            const value = values[`${sectionKey}.${field.key}`] || '';
+            if (isCriticalValue(value, criticalValue)) {
+              await addCriticalAlert({
+                patientId: patient.id,
+                patientName: patient.name,
+                testKey: `${sectionKey}.${field.key}`,
+                testName: catalogItem?.name || field.label,
+                value,
+                rule: criticalValue,
+              });
+            }
+          }
+        }
+      }
 
       if (criticalTests.length) {
         Alert.alert(
@@ -383,12 +420,12 @@ export default function ResultEntryScreen({ route, navigation }: any) {
 
                   <View style={styles.sectionBadge}>
                     <Text style={styles.sectionBadgeText}>
-                      {section.fields.length}
+                      {getSelectedFields(sectionKey).length}
                     </Text>
                   </View>
                 </View>
 
-                {section.fields.map((field) => {
+                {getSelectedFields(sectionKey).map((field) => {
                   const catalogItem = getCatalogItem(
                     sectionKey,
                     field.key,

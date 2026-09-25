@@ -103,11 +103,12 @@ export default function PatientReportScreen({
       setBusy(type);
 
       const options = settings.printSettings || {};
+      const exportSettings = { ...settings, __catalog: testCatalog };
 
       if (type === 'pdf') {
         await exportPatientPdf(
           patient!,
-          settings,
+          exportSettings,
           options,
         );
 
@@ -118,7 +119,7 @@ export default function PatientReportScreen({
       } else {
         await printPatient(
           patient!,
-          settings,
+          exportSettings,
           options,
         );
 
@@ -509,13 +510,31 @@ function ReportSection({
     (patient as any)[section.dataKey] || {};
 
   /*
-   * نعرض فقط الفحوصات التي تحتوي على نتيجة.
+   * نعرض فقط الفحوصات التي اختارها المريض والتي تحتوي على نتيجة.
+   * المرضى القدامى بدون selectedTests يستمرون بالعمل بنفس الطريقة السابقة.
    */
-  const rows = section.fields.filter(
-    (f: any) =>
-      String(
-        data[f.key] ?? '',
-      ).trim() !== '',
+  const selectedKeys = new Set<string>(
+    Array.isArray(patient.selectedTests) && patient.selectedTests.length
+      ? patient.selectedTests
+          .filter((id) => id.startsWith(`${sectionKey}.`))
+          .map((id) => id.slice(sectionKey.length + 1))
+      : section.fields.map((f: any) => f.key),
+  );
+  const baseRows = section.fields.filter((f: any) => selectedKeys.has(f.key));
+  const baseKeys = new Set(baseRows.map((f: any) => f.key));
+  const customRows = (testCatalog || [])
+    .filter((t: any) => t?.enabled !== false && t?.section === sectionKey && selectedKeys.has(t.key) && !baseKeys.has(t.key))
+    .map((t: any) => ({
+      key: t.key,
+      label: t.name || t.key,
+      normal: t.referenceRange || '',
+      abbreviation: t.abbreviation || '',
+      tube: t.tube || '',
+      specimen: t.specimen || '',
+      notes: t.notes || '',
+    }));
+  const rows = [...baseRows, ...customRows].filter(
+    (f: any) => String(data[f.key] ?? '').trim() !== '',
   );
 
   if (!rows.length) return null;
