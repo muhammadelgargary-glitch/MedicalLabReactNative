@@ -335,38 +335,38 @@ function pageCss(p: Required<PrintOptions>) {
 
     /* CLASSIC: تقليدي بسيط */
     .template-classic .report-header{border-bottom:2px solid #666;padding-bottom:10px;margin-bottom:12px;}
-    .template-classic .report-title{font-size:${Math.max(14, safeNumber(DEFAULT_PRINT_SETTINGS.fontSize))}px;font-weight:bold;color:#111;}
-    .template-classic .section-title{background:#F5F5F5;color:#333;border:1px solid #999;border-radius:0;padding:8px 10px;font-size:${Math.max(11, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;font-weight:bold;margin-top:12px;}
+    .template-classic .report-title{font-size:${Math.max(14, safeNumber(p.fontSize))}px;font-weight:bold;color:#111;}
+    .template-classic .section-title{background:#F5F5F5;color:#333;border:1px solid #999;border-radius:0;padding:8px 10px;font-size:${Math.max(11, safeNumber(p.tableFontSize)-1)}px;font-weight:bold;margin-top:12px;}
     .template-classic .result-table{border:1px solid #999;}
-    .template-classic .result-table th{background:#EEEEEE;color:#333;border:1px solid #999;font-size:${Math.max(10, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;padding:6px;}
-    .template-classic .result-table td{border:1px solid #CCC;padding:6px;font-size:${Math.max(10, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-2)}px;}
+    .template-classic .result-table th{background:#EEEEEE;color:#333;border:1px solid #999;font-size:${Math.max(10, safeNumber(p.tableFontSize)-1)}px;padding:6px;}
+    .template-classic .result-table td{border:1px solid #CCC;padding:6px;font-size:${Math.max(10, safeNumber(p.tableFontSize)-2)}px;}
     .template-classic .result-table td.value{color:#111;font-weight:bold;}
     
     /* MODERN: حديث احترافي */
     .template-modern .report-header{border-bottom:3px solid #0F766E;padding-bottom:14px;margin-bottom:14px;}
-    .template-modern .report-title{font-size:${Math.max(16, safeNumber(DEFAULT_PRINT_SETTINGS.fontSize)+2)}px;font-weight:900;color:#0F766E;}
-    .template-modern .section-title{background:#0F766E;color:#fff;border-radius:8px;padding:10px 12px;font-size:${Math.max(12, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize))}px;font-weight:900;margin-top:14px;}
+    .template-modern .report-title{font-size:${Math.max(16, safeNumber(p.fontSize)+2)}px;font-weight:900;color:#0F766E;}
+    .template-modern .section-title{background:#0F766E;color:#fff;border-radius:8px;padding:10px 12px;font-size:${Math.max(12, safeNumber(p.tableFontSize))}px;font-weight:900;margin-top:14px;}
     .template-modern .result-table{border:1px solid #0F766E;border-radius:8px;overflow:hidden;}
-    .template-modern .result-table th{background:#0F766E;color:#fff;border:none;font-size:${Math.max(11, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize))}px;font-weight:900;padding:8px;}
-    .template-modern .result-table td{border-bottom:1px solid #D0E8E5;padding:8px;font-size:${Math.max(10, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;}
+    .template-modern .result-table th{background:#0F766E;color:#fff;border:none;font-size:${Math.max(11, safeNumber(p.tableFontSize))}px;font-weight:900;padding:8px;}
+    .template-modern .result-table td{border-bottom:1px solid #D0E8E5;padding:8px;font-size:${Math.max(10, safeNumber(p.tableFontSize)-1)}px;}
     .template-modern .result-table td.value{color:#0F766E;font-weight:900;}
     
     /* COMPACT: مضغوط */
     .template-compact .report-header{border-bottom:2px solid #0F766E;padding-bottom:8px;margin-bottom:8px;}
-    .template-compact .report-title{font-size:${Math.max(13, safeNumber(DEFAULT_PRINT_SETTINGS.fontSize)-1)}px;font-weight:bold;color:#0F766E;}
-    .template-compact .section-title{background:#D9F2F0;color:#0B4F4A;border-radius:4px;padding:5px 7px;font-size:${Math.max(10, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-2)}px;font-weight:bold;margin-top:8px;margin-bottom:2px;}
-    .template-compact .result-table{border:1px solid #CBD5D1;font-size:${Math.max(9, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-2)}px;}
+    .template-compact .report-title{font-size:${Math.max(13, safeNumber(p.fontSize)-1)}px;font-weight:bold;color:#0F766E;}
+    .template-compact .section-title{background:#D9F2F0;color:#0B4F4A;border-radius:4px;padding:5px 7px;font-size:${Math.max(10, safeNumber(p.tableFontSize)-2)}px;font-weight:bold;margin-top:8px;margin-bottom:2px;}
+    .template-compact .result-table{border:1px solid #CBD5D1;font-size:${Math.max(9, safeNumber(p.tableFontSize)-2)}px;}
     .template-compact .result-table th{background:#D9F2F0;color:#0B4F4A;border:1px solid #CBD5D1;padding:3px 4px;}
     .template-compact .result-table td{border:1px solid #E8EDEA;padding:3px 4px;}
     .template-compact .result-table td.value{color:#0F766E;font-weight:bold;}
     
     /* MINIMAL: بسيط */
     .template-minimal .report-header{border-bottom:2px solid #0F766E;padding-bottom:10px;margin-bottom:10px;}
-    .template-minimal .report-title{font-size:${Math.max(14, safeNumber(DEFAULT_PRINT_SETTINGS.fontSize))}px;font-weight:900;color:#0F766E;}
-    .template-minimal .section-title{background:transparent;color:#0F766E;border-bottom:2px solid #0F766E;border-radius:0;padding:8px 0;font-size:${Math.max(11, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;font-weight:900;margin-top:12px;}
+    .template-minimal .report-title{font-size:${Math.max(14, safeNumber(p.fontSize))}px;font-weight:900;color:#0F766E;}
+    .template-minimal .section-title{background:transparent;color:#0F766E;border-bottom:2px solid #0F766E;border-radius:0;padding:8px 0;font-size:${Math.max(11, safeNumber(p.tableFontSize)-1)}px;font-weight:900;margin-top:12px;}
     .template-minimal .result-table{border:none;border-top:2px solid #0F766E;}
-    .template-minimal .result-table th{background:transparent;color:#0F766E;border:none;border-bottom:1px solid #CBD5D1;font-size:${Math.max(10, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;font-weight:900;padding:6px 0;}
-    .template-minimal .result-table td{border:none;border-bottom:1px solid #E8EDEA;padding:6px 0;font-size:${Math.max(10, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;}
+    .template-minimal .result-table th{background:transparent;color:#0F766E;border:none;border-bottom:1px solid #CBD5D1;font-size:${Math.max(10, safeNumber(p.tableFontSize)-1)}px;font-weight:900;padding:6px 0;}
+    .template-minimal .result-table td{border:none;border-bottom:1px solid #E8EDEA;padding:6px 0;font-size:${Math.max(10, safeNumber(p.tableFontSize)-1)}px;}
     .template-minimal .result-table td.value{color:#0F766E;font-weight:900;}
 
     .patient-table{
@@ -390,13 +390,7 @@ function pageCss(p: Required<PrintOptions>) {
       margin-top:10px;
     }
 
-    .section-title{
-      background:#0F766E;
-      color:#fff;
-      padding:6px 8px;
-      font-weight:900;
-      border-radius:7px 7px 0 0;
-    }
+    /* تم نقل section-title إلى CSS القوالب */
 
     .result-table th,
     .result-table td{
