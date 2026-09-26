@@ -168,20 +168,10 @@ function getPrintSettings(
   settings: any = {},
   options: PrintOptions = {},
 ): Required<PrintOptions> {
-  // FIX: تأكد من تمرير template بشكل صحيح
-  const template = 
-    options.template ||
-    settings?.printSettings?.template ||
-    settings?.template ||
-    DEFAULT_PRINT_SETTINGS.template;
-  
   return {
     ...DEFAULT_PRINT_SETTINGS,
     ...(settings?.printSettings || {}),
     ...options,
-
-    // تأكد من استخدام القالب الصحيح
-    template: template,
 
     // الأسعار والدفع تخص بطاقة المريض/الحسابات فقط، وليست جزءاً من قالب التقرير المطبوع.
     showPrice: false,
@@ -333,41 +323,18 @@ function pageCss(p: Required<PrintOptions>) {
     }
 
 
-    /* CLASSIC: تقليدي بسيط */
-    .template-classic .report-header{border-bottom:2px solid #666;padding-bottom:10px;margin-bottom:12px;}
-    .template-classic .report-title{font-size:${Math.max(14, safeNumber(p.fontSize))}px;font-weight:bold;color:#111;}
-    .template-classic .section-title{background:#F5F5F5;color:#333;border:1px solid #999;border-radius:0;padding:8px 10px;font-size:${Math.max(11, safeNumber(p.tableFontSize)-1)}px;font-weight:bold;margin-top:12px;}
-    .template-classic .result-table{border:1px solid #999;}
-    .template-classic .result-table th{background:#EEEEEE;color:#333;border:1px solid #999;font-size:${Math.max(10, safeNumber(p.tableFontSize)-1)}px;padding:6px;}
-    .template-classic .result-table td{border:1px solid #CCC;padding:6px;font-size:${Math.max(10, safeNumber(p.tableFontSize)-2)}px;}
-    .template-classic .result-table td.value{color:#111;font-weight:bold;}
-    
-    /* MODERN: حديث احترافي */
-    .template-modern .report-header{border-bottom:3px solid #0F766E;padding-bottom:14px;margin-bottom:14px;}
-    .template-modern .report-title{font-size:${Math.max(16, safeNumber(p.fontSize)+2)}px;font-weight:900;color:#0F766E;}
-    .template-modern .section-title{background:#0F766E;color:#fff;border-radius:8px;padding:10px 12px;font-size:${Math.max(12, safeNumber(p.tableFontSize))}px;font-weight:900;margin-top:14px;}
-    .template-modern .result-table{border:1px solid #0F766E;border-radius:8px;overflow:hidden;}
-    .template-modern .result-table th{background:#0F766E;color:#fff;border:none;font-size:${Math.max(11, safeNumber(p.tableFontSize))}px;font-weight:900;padding:8px;}
-    .template-modern .result-table td{border-bottom:1px solid #D0E8E5;padding:8px;font-size:${Math.max(10, safeNumber(p.tableFontSize)-1)}px;}
-    .template-modern .result-table td.value{color:#0F766E;font-weight:900;}
-    
-    /* COMPACT: مضغوط */
-    .template-compact .report-header{border-bottom:2px solid #0F766E;padding-bottom:8px;margin-bottom:8px;}
-    .template-compact .report-title{font-size:${Math.max(13, safeNumber(p.fontSize)-1)}px;font-weight:bold;color:#0F766E;}
-    .template-compact .section-title{background:#D9F2F0;color:#0B4F4A;border-radius:4px;padding:5px 7px;font-size:${Math.max(10, safeNumber(p.tableFontSize)-2)}px;font-weight:bold;margin-top:8px;margin-bottom:2px;}
-    .template-compact .result-table{border:1px solid #CBD5D1;font-size:${Math.max(9, safeNumber(p.tableFontSize)-2)}px;}
-    .template-compact .result-table th{background:#D9F2F0;color:#0B4F4A;border:1px solid #CBD5D1;padding:3px 4px;}
-    .template-compact .result-table td{border:1px solid #E8EDEA;padding:3px 4px;}
-    .template-compact .result-table td.value{color:#0F766E;font-weight:bold;}
-    
-    /* MINIMAL: بسيط */
-    .template-minimal .report-header{border-bottom:2px solid #0F766E;padding-bottom:10px;margin-bottom:10px;}
-    .template-minimal .report-title{font-size:${Math.max(14, safeNumber(p.fontSize))}px;font-weight:900;color:#0F766E;}
-    .template-minimal .section-title{background:transparent;color:#0F766E;border-bottom:2px solid #0F766E;border-radius:0;padding:8px 0;font-size:${Math.max(11, safeNumber(p.tableFontSize)-1)}px;font-weight:900;margin-top:12px;}
-    .template-minimal .result-table{border:none;border-top:2px solid #0F766E;}
-    .template-minimal .result-table th{background:transparent;color:#0F766E;border:none;border-bottom:1px solid #CBD5D1;font-size:${Math.max(10, safeNumber(p.tableFontSize)-1)}px;font-weight:900;padding:6px 0;}
-    .template-minimal .result-table td{border:none;border-bottom:1px solid #E8EDEA;padding:6px 0;font-size:${Math.max(10, safeNumber(p.tableFontSize)-1)}px;}
-    .template-minimal .result-table td.value{color:#0F766E;font-weight:900;}
+    .template-classic .report-header{border-bottom:1px solid #777;padding-bottom:8px;}
+    .template-modern .report-header{border-bottom:3px solid #0F766E;padding-bottom:10px;}
+    .template-compact .report-header{border-bottom:1px solid #CBD5D1;padding-bottom:6px;margin-bottom:6px;}
+    .template-minimal .report-header{border-bottom:1px solid #CBD5D1;padding-bottom:6px;}
+    .template-classic .section-title{background:#F0F0F0;color:#111;border:1px solid #BDBDBD;border-radius:0;padding:5px 7px;}
+    .template-modern .section-title{background:#0F766E;color:#fff;border-radius:7px;}
+    .template-compact .section-title{background:#EAF2F0;color:#17312C;border-radius:4px;padding:4px 6px;}
+    .template-minimal .section-title{background:transparent;color:#0F766E;border-bottom:1px solid #CBD5D1;border-radius:0;padding:4px 0;}
+    .template-classic .result-table th{background:#F0F0F0;color:#111;}
+    .template-classic .result-table td.value{color:#111;}
+    .template-compact .result-table th,.template-compact .result-table td{padding:3px 4px;font-size:${Math.max(9, safeNumber(DEFAULT_PRINT_SETTINGS.tableFontSize)-1)}px;}
+    .template-minimal .result-table th,.template-minimal .result-table td{border-bottom:1px solid #E1E7E4;border-left:0;border-right:0;padding:4px 5px;}
 
     .patient-table{
       margin-top:8px;
@@ -390,7 +357,13 @@ function pageCss(p: Required<PrintOptions>) {
       margin-top:10px;
     }
 
-    /* تم نقل section-title إلى CSS القوالب */
+    .section-title{
+      background:#0F766E;
+      color:#fff;
+      padding:6px 8px;
+      font-weight:900;
+      border-radius:7px 7px 0 0;
+    }
 
     .result-table th,
     .result-table td{
@@ -498,24 +471,6 @@ function getSectionResults(patient: any, key: any, catalog: any[] = []) {
 }
 
 function getIncludedSections(patient: any) {
-  // FIX: دعم selectedTests والطريقة القديمة
-  
-  // الطريقة الجديدة: استخدم selectedTests
-  if (Array.isArray(patient?.selectedTests) && patient.selectedTests.length) {
-    const sectionSet = new Set<string>();
-    patient.selectedTests.forEach((testId: string) => {
-      const [section] = testId.split('.');
-      if (SECTION_KEYS.includes(section)) {
-        sectionSet.add(section);
-      }
-    });
-    
-    if (sectionSet.size > 0) {
-      return Array.from(sectionSet);
-    }
-  }
-  
-  // الطريقة القديمة: استخدم include[Section]
   return SECTION_KEYS.filter(
     (key) => !!patient?.[`include${key}`],
   );
@@ -854,22 +809,75 @@ export async function exportPatientPdf(
   return uri;
 }
 
-async function printHtmlDocument(html: string) {
-  // على Android نطبع PDF مولداً من HTML أولاً، ثم نمرر ملف PDF إلى
-  // نافذة الطباعة. هذا يمنع Android Print Spooler من أخذ شاشة التطبيق
-  // الحالية (الأزرار والقوائم) بدل قالب التقرير.
+async function printHtmlDocument(html: string, options: PrintOptions = {}) {
+  /*
+   * مهم جدًا:
+   * لا نطبع شاشة React Native نفسها.
+   *
+   * على Android نبني PDF حقيقي من HTML أولًا، ثم نمرر URI الملف
+   * إلى Print.printAsync. إذا كان الملف file:// نحوله إلى content://
+   * حتى يستطيع Android Print Spooler الوصول إليه بشكل صحيح.
+   *
+   * لا يوجد fallback إلى printAsync({ html }) على Android، لأن هذا
+   * قد يعيد مسار طباعة HTML/واجهة التطبيق في بعض البيئات ويؤدي إلى
+   * ظهور أزرار الشاشة داخل معاينة الطباعة.
+   */
   if (Platform.OS === 'web') {
     await Print.printAsync({ html });
     return;
   }
 
-  try {
-    const { uri } = await Print.printToFileAsync({ html });
-    await Print.printAsync({ uri });
-  } catch {
-    // احتياط للتوافق مع بعض إصدارات expo-print.
-    await Print.printAsync({ html });
+  const paper = options.paper || 'A4';
+  const orientation = options.orientation || 'portrait';
+
+  // أبعاد تقريبية مناسبة لـ expo-print عند إنشاء PDF.
+  // 72 نقطة لكل بوصة: A4 = 595 x 842، A5 = 420 x 595، Letter = 612 x 792.
+  const sizes: Record<string, { width: number; height: number }> = {
+    A4: { width: 595, height: 842 },
+    A5: { width: 420, height: 595 },
+    Letter: { width: 612, height: 792 },
+  };
+
+  const base = sizes[paper] || sizes.A4;
+  const width = orientation === 'landscape' ? base.height : base.width;
+  const height = orientation === 'landscape' ? base.width : base.height;
+
+  const result = await Print.printToFileAsync({
+    html,
+    width,
+    height,
+  });
+
+  if (!result?.uri) {
+    throw new Error('تعذر إنشاء ملف PDF للتقرير قبل الطباعة.');
   }
+
+  // نتأكد أن ملف الـPDF موجود وغير فارغ قبل إرساله إلى Android.
+  try {
+    const info = await FileSystem.getInfoAsync(result.uri);
+    if (!info.exists || (typeof info.size === 'number' && info.size <= 0)) {
+      throw new Error('تم إنشاء ملف PDF فارغ أو غير صالح للطباعة.');
+    }
+  } catch (error: any) {
+    if (error?.message?.includes('ملف PDF')) throw error;
+    // بعض إصدارات expo-file-system لا تعيد size؛ وجود URI يكفي في هذه الحالة.
+  }
+
+  let printableUri = result.uri;
+
+  if (Platform.OS === 'android' && result.uri.startsWith('file://')) {
+    try {
+      printableUri = await FileSystem.getContentUriAsync(result.uri);
+    } catch {
+      // expo-print يدعم file:// أيضًا، لذلك نستخدمه فقط إذا تعذر تحويله.
+      printableUri = result.uri;
+    }
+  }
+
+  // مهم: لا نستخدم HTML هنا. نرسل PDF فقط إلى نافذة الطباعة.
+  await Print.printAsync({
+    uri: printableUri,
+  });
 }
 
 export async function printPatient(
@@ -879,6 +887,7 @@ export async function printPatient(
 ) {
   await printHtmlDocument(
     buildPatientReportHtml(patient, settings, options),
+    options,
   );
 }
 
@@ -916,6 +925,7 @@ export async function printMultiplePatients(
 ) {
   await printHtmlDocument(
     buildMultiplePatientReportsHtml(patients, settings, options),
+    options,
   );
 }
 
